@@ -1,21 +1,48 @@
 'use strict';
 
 // ============================================================
-// CANVAS & CONTEXT
+// CANVAS — PLEIN ÉCRAN DYNAMIQUE
 // ============================================================
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const W = canvas.width;   // 800
-const H = canvas.height;  // 500
+const ctx    = canvas.getContext('2d');
+
+// Résolution interne fixe (logique du jeu)
+const VW = 960, VH = 540;
+canvas.width  = VW;
+canvas.height = VH;
+
+// Alias globaux utilisés dans tout le code
+let W = VW, H = VH;
+
+function resizeCanvas() {
+  const sx = window.innerWidth  / VW;
+  const sy = window.innerHeight / VH;
+  // On prend le min pour garder le ratio + on remplit l'écran sans bandes noires
+  const s  = Math.max(sx, sy);
+  const dw = Math.round(VW * s);
+  const dh = Math.round(VH * s);
+  canvas.style.width  = dw + 'px';
+  canvas.style.height = dh + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // ============================================================
-// PHYSICS CONSTANTS
+// PHYSICS CONSTANTS — moteur pro
 // ============================================================
-const GRAVITY      = 0.5;
-const MAX_FALL     = 16;
-const PLAYER_SPMAX = 5;
-const JUMP_FORCE   = -13;
-const FRICTION     = 0.82;
+const GRAVITY       = 0.55;   // gravité de base
+const GRAVITY_FALL  = 1.05;   // plus lourde en descente → chute nette
+const GRAVITY_RISE  = 0.38;   // plus légère en montée (bouton maintenu)
+const GRAVITY_CUT   = 0.70;   // si on lâche saut tôt → coupe la montée
+const MAX_FALL      = 20;
+const PLAYER_SPMAX  = 6.5;
+const PLAYER_ACCEL  = 2.2;    // accél sol
+const PLAYER_ACCEL_AIR = 1.0; // accél air (moins de contrôle)
+const GROUND_FRIC   = 0.76;   // friction sol (arrêt net)
+const AIR_FRIC      = 0.94;   // friction air
+const JUMP_FORCE    = -15;
+const COYOTE_T      = 8;      // frames de grâce après avoir quitté un bord
+const JUMP_BUFFER   = 8;      // frames de buffer avant l'atterrissage
 
 // ============================================================
 // GLOBAL STATE
@@ -214,56 +241,97 @@ function _drawHorizTwist(cx, cy, w, h, isLeft) {
 class Player {
   constructor(x, y) {
     this.x = x;  this.y = y;
-    this.w = 30; this.h = 38;
+    this.w = 32; this.h = 40;
     this.vx = 0; this.vy = 0;
-    this.onGround  = false;
-    this.facing    = 1;
-    this.jumps     = 0;
-    this.maxJumps  = 2;
-    this.hp        = 3;
-    this.iframes   = 0;
-    this.dead      = false;
-    this.walkPhase = 0;
+    this.onGround    = false;
+    this.wasOnGround = false;
+    this.facing      = 1;
+    this.jumps       = 0;
+    this.maxJumps    = 2;
+    this.hp          = 3;
+    this.iframes     = 0;
+    this.dead        = false;
+    this.walkPhase   = 0;
+    this.coyoteT     = 0;   // coyote time counter
+    this.jumpBuffer  = 0;   // jump buffer counter
+    this.jumpHeld    = false;
     this.pu = { speed: 0, superJump: 0, shield: 0, ultra: 0 };
   }
 
-  get speedMult() { return 1 + (this.pu.speed > 0 ? 0.7 : 0) + (this.pu.ultra > 0 ? 1.0 : 0); }
-  get jumpMult()  { return 1 + (this.pu.superJump > 0 ? 0.45 : 0) + (this.pu.ultra > 0 ? 0.25 : 0); }
+  get speedMult() { return 1 + (this.pu.speed > 0 ? 0.65 : 0) + (this.pu.ultra > 0 ? 0.95 : 0); }
+  get jumpMult()  { return 1 + (this.pu.superJump > 0 ? 0.42 : 0) + (this.pu.ultra > 0 ? 0.22 : 0); }
 
   update() {
     for (const k in this.pu) if (this.pu[k] > 0) this.pu[k]--;
     if (this.iframes > 0) this.iframes--;
+    if (this.coyoteT  > 0) this.coyoteT--;
+    if (this.jumpBuffer > 0) this.jumpBuffer--;
 
-    const spd = PLAYER_SPMAX * this.speedMult;
+    const spd   = PLAYER_SPMAX * this.speedMult;
+    const accel = this.onGround ? PLAYER_ACCEL : PLAYER_ACCEL_AIR;
+    const fric  = this.onGround ? GROUND_FRIC  : AIR_FRIC;
 
+    // ── Déplacement horizontal ──
     if (held('ArrowLeft') || held('KeyA')) {
-      this.vx = Math.max(this.vx - 2, -spd);
+      this.vx = Math.max(this.vx - accel, -spd);
       this.facing = -1;
-      if (this.onGround) this.walkPhase += 0.22;
     } else if (held('ArrowRight') || held('KeyD')) {
-      this.vx = Math.min(this.vx + 2, spd);
+      this.vx = Math.min(this.vx + accel,  spd);
       this.facing = 1;
-      if (this.onGround) this.walkPhase += 0.22;
     } else {
-      this.vx *= FRICTION;
-      if (Math.abs(this.vx) < 0.1) this.vx = 0;
-      this.walkPhase = 0;
+      this.vx *= fric;
+      if (Math.abs(this.vx) < 0.12) this.vx = 0;
     }
 
-    const jumpKey = just('Space') || just('ArrowUp') || just('KeyW');
-    if (jumpKey && this.jumps < this.maxJumps) {
-      this.vy = JUMP_FORCE * this.jumpMult;
-      this.jumps++;
-      burst(this.x + this.w/2, this.y + this.h, '#C8860A', 5, 3);
+    // Animation de marche
+    if (Math.abs(this.vx) > 0.4 && this.onGround) this.walkPhase += 0.24 * Math.abs(this.vx) / spd;
+    else if (this.onGround) this.walkPhase = 0;
+
+    // ── Buffer de saut ──
+    const jumpPressed = just('Space') || just('ArrowUp') || just('KeyW');
+    if (jumpPressed) this.jumpBuffer = JUMP_BUFFER;
+    this.jumpHeld = held('Space') || held('ArrowUp') || held('KeyW');
+
+    // ── Exécution du saut (sol + coyote + double saut) ──
+    if (this.jumpBuffer > 0) {
+      if (this.onGround || this.coyoteT > 0) {
+        // Saut depuis le sol
+        this.vy = JUMP_FORCE * this.jumpMult;
+        this.jumps     = 1;
+        this.jumpBuffer = 0;
+        this.coyoteT   = 0;
+        burst(this.x + this.w/2, this.y + this.h, '#C8860A', 6, 3);
+      } else if (this.jumps < this.maxJumps) {
+        // Double saut
+        this.vy = JUMP_FORCE * this.jumpMult * 0.88;
+        this.jumps++;
+        this.jumpBuffer = 0;
+        burst(this.x + this.w/2, this.y + this.h/2, '#FFD700', 8, 4);
+      }
     }
 
-    this.vy = Math.min(this.vy + GRAVITY, MAX_FALL);
+    // ── Gravité asymétrique ──
+    if (this.vy < 0) {
+      // Montée
+      const g = this.jumpHeld ? GRAVITY_RISE : GRAVITY_RISE + GRAVITY_CUT;
+      this.vy += g;
+    } else {
+      // Descente plus rapide → feel snappy
+      this.vy += GRAVITY_FALL;
+    }
+    this.vy = Math.min(this.vy, MAX_FALL);
 
+    this.wasOnGround = this.onGround;
     this.x += this.vx;
     this._resolveX();
     this.y += this.vy;
     this.onGround = false;
     this._resolveY();
+
+    // Coyote time : démarre quand on quitte le sol sans sauter
+    if (this.wasOnGround && !this.onGround && this.vy >= 0) {
+      this.coyoteT = COYOTE_T;
+    }
 
     // Left boundary
     if (this.x < 0) { this.x = 0; this.vx = 0; }
@@ -334,13 +402,14 @@ class Player {
       if (!overlap({ x: this.x + 2, y: this.y, w: this.w - 4, h: this.h },
                    { x: p.x, y: p.y, w: p.w, h: p.h })) continue;
       if (this.vy >= 0) {
-        this.y = p.y - this.h;
-        this.vy = 0;
+        this.y        = p.y - this.h;
+        this.vy       = 0;
         this.onGround = true;
-        this.jumps = 0;
+        this.jumps    = 0;
+        this.coyoteT  = 0;
       } else {
-        this.y = p.y + p.h;
-        this.vy = 2;
+        this.y  = p.y + p.h;
+        this.vy = 1;
       }
     }
   }
@@ -894,73 +963,116 @@ class Platform {
   constructor(cfg) { Object.assign(this, cfg); this.h = this.h || 20; this.type = this.type || 'chocolate'; }
   draw() {
     const {x, y, w, h} = this;
+
+    // ── CONFIG PAR TYPE ──
     const T = {
-      chocolate: { g: ['#B85A22','#8B3A0A','#5C2208'], e: ['#3D1604','#281002'], seg:'#3D1604', sh:'rgba(255,210,160,0.28)', dot:null  },
-      cream:     { g: ['#FFFAEE','#F5E8C0','#E2CC8A'], e: ['#C8A040','#A07030'], seg:'#C8A040', sh:'rgba(255,255,255,0.52)', dot:null  },
-      nougat:    { g: ['#DDA824','#C07A08','#905806'], e: ['#704800','#4A3004'], seg:'#704800', sh:'rgba(255,228,130,0.32)', dot:'#7A4A10'},
-      ground:    { g: ['#7A4210','#5A2A08','#3A1804'], e: ['#251008','#160806'], seg:'#251008', sh:'rgba(200,140,80,0.18)',  dot:null  },
+      chocolate: {
+        top: '#C46228', mid: '#8B3A0A', bot: '#4E1C06',
+        edge1: '#3A1404', edge2: '#200C02',
+        seg: '#3A1404', shine: 'rgba(255,215,160,0.32)', dotCol: null,
+      },
+      cream: {
+        top: '#FFFDF0', mid: '#F5E8C0', bot: '#DEC888',
+        edge1: '#C8A040', edge2: '#906820',
+        seg: '#C8A040', shine: 'rgba(255,255,255,0.6)', dotCol: null,
+      },
+      nougat: {
+        top: '#E8B830', mid: '#C47808', bot: '#8A5204',
+        edge1: '#6A4200', edge2: '#402800',
+        seg: '#6A4200', shine: 'rgba(255,235,120,0.38)', dotCol: '#7A4A10',
+      },
+      ground: {
+        top: '#8A4A12', mid: '#5C2A08', bot: '#321404',
+        edge1: '#220E04', edge2: '#120602',
+        seg: '#220E04', shine: 'rgba(200,130,70,0.2)', dotCol: null,
+      },
     };
     const c = T[this.type] || T.chocolate;
 
-    // Drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    rRect(x+5, y+5, w, h, 5, 'rgba(0,0,0,0.28)', null);
+    // Ombre portée douce
+    ctx.shadowColor   = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur    = 8;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 5;
+    ctx.fillStyle = c.edge2;
+    rRect(x, y, w, h, 6, c.edge2, null);
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
 
-    // Main gradient body
-    const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, c.g[0]); mg.addColorStop(0.45, c.g[1]); mg.addColorStop(1, c.g[2]);
-    rRect(x, y, w, h, 5, mg, null);
+    // Corps principal — dégradé 3 tons
+    const mg = ctx.createLinearGradient(x, y, x, y + h);
+    mg.addColorStop(0, c.top); mg.addColorStop(0.5, c.mid); mg.addColorStop(1, c.bot);
+    rRect(x, y, w, h, 6, mg, null);
 
-    // Cream: bumpy whipped-cream top edge
+    // ── Crème : bord supérieur ondulé ──
     if (this.type === 'cream') {
-      ctx.fillStyle = c.g[0];
-      ctx.beginPath(); ctx.moveTo(x+5, y+5);
-      for (let i=0; i<=w-10; i+=10)
-        ctx.quadraticCurveTo(x+5+i+5, y-3, x+5+i+10, y+5);
-      ctx.lineTo(x+w-5, y+9); ctx.lineTo(x+5, y+9); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = c.top;
+      ctx.beginPath(); ctx.moveTo(x + 4, y + 5);
+      const step = 12;
+      for (let i = 0; i <= w - 8; i += step)
+        ctx.quadraticCurveTo(x + 4 + i + step/2, y - 5, x + 4 + i + step, y + 5);
+      ctx.lineTo(x + w - 4, y + 10); ctx.lineTo(x + 4, y + 10); ctx.closePath(); ctx.fill();
+      // Ombre douce sous la crème
+      ctx.fillStyle = 'rgba(200,160,80,0.15)';
+      ctx.fillRect(x + 2, y + 7, w - 4, 4);
     }
 
-    // Nougat: hazelnut specks
-    if (this.type === 'nougat') {
-      const n = Math.max(2, Math.floor(w/32));
-      for (let i=0; i<n; i++) {
-        const hx = x+16 + i*(w/n) + (i*11%18)-6, hy = y+4+(i*5%7);
-        ctx.fillStyle = c.dot;
-        ctx.beginPath(); ctx.ellipse(hx, hy, 4.5, 3, 0.4, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'rgba(200,160,80,0.4)';
-        ctx.beginPath(); ctx.ellipse(hx-1, hy-1, 2, 1.2, 0, 0, Math.PI*2); ctx.fill();
+    // ── Nougat : noisettes avec profondeur ──
+    if (this.type === 'nougat' && c.dotCol) {
+      const n = Math.max(2, Math.floor(w / 34));
+      for (let i = 0; i < n; i++) {
+        const hx = x + 18 + i * (w / n) + (i * 9 % 14) - 5;
+        const hy = y + 5 + (i * 4 % 6);
+        // Ombre de la noisette
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath(); ctx.ellipse(hx + 1, hy + 1, 5, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        // Corps
+        const ng = ctx.createRadialGradient(hx - 1.5, hy - 1, 1, hx, hy, 5);
+        ng.addColorStop(0, '#C09040'); ng.addColorStop(0.5, '#8B5E10'); ng.addColorStop(1, '#5C3A08');
+        ctx.fillStyle = ng;
+        ctx.beginPath(); ctx.ellipse(hx, hy, 5, 3.5, 0.4, 0, Math.PI * 2); ctx.fill();
+        // Reflet
+        ctx.fillStyle = 'rgba(240,200,100,0.45)';
+        ctx.beginPath(); ctx.ellipse(hx - 1.5, hy - 1, 2.5, 1.5, 0.3, 0, Math.PI * 2); ctx.fill();
       }
     }
 
-    // Chocolate/ground: subtle bump dots
+    // ── Chocolat/sol : lignes de texture ──
     if (this.type === 'chocolate' || this.type === 'ground') {
-      ctx.fillStyle = 'rgba(0,0,0,0.09)';
-      for (let bx=x+9; bx<x+w-4; bx+=12) {
-        ctx.beginPath(); ctx.arc(bx, y+5, 2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.07)';
+      for (let bx = x + 10; bx < x + w - 5; bx += 14) {
+        ctx.beginPath(); ctx.arc(bx, y + 6, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+      // Grain fin
+      ctx.fillStyle = 'rgba(255,200,140,0.06)';
+      for (let bx = x + 4; bx < x + w - 3; bx += 7) {
+        ctx.beginPath(); ctx.arc(bx, y + 12, 1.5, 0, Math.PI * 2); ctx.fill();
       }
     }
 
-    // Bottom 3D edge
-    const eg = ctx.createLinearGradient(x, y+h-8, x, y+h);
-    eg.addColorStop(0, c.e[0]); eg.addColorStop(1, c.e[1]);
-    rRect(x, y+h-8, w, 8, 5, eg, null);
+    // ── Face avant (3D) ──
+    const eg = ctx.createLinearGradient(x, y + h - 9, x, y + h);
+    eg.addColorStop(0, c.edge1); eg.addColorStop(1, c.edge2);
+    rRect(x, y + h - 9, w, 9, 6, eg, null);
 
-    // Segment dividers
-    for (let sx=x+38; sx<x+w-6; sx+=38) {
-      ctx.strokeStyle = c.seg; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(sx, y+2); ctx.lineTo(sx, y+h-8); ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(sx+1.5, y+2); ctx.lineTo(sx+1.5, y+h-8); ctx.stroke();
+    // ── Diviseurs de tablette ──
+    const segW = 42;
+    for (let sx = x + segW; sx < x + w - 8; sx += segW) {
+      // Rainure sombre
+      ctx.strokeStyle = c.seg; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx, y + 3); ctx.lineTo(sx, y + h - 9); ctx.stroke();
+      // Reflet clair à droite
+      ctx.strokeStyle = 'rgba(255,220,160,0.18)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx + 2, y + 3); ctx.lineTo(sx + 2, y + h - 10); ctx.stroke();
     }
 
-    // Top shine
-    const sg2 = ctx.createLinearGradient(x, y, x, y+8);
-    sg2.addColorStop(0, c.sh); sg2.addColorStop(1, 'rgba(255,255,255,0)');
-    rRect(x+2, y+1, w-4, 7, 3, sg2, null);
-    if (this.type === 'chocolate') {
-      ctx.fillStyle = 'rgba(255,180,120,0.14)';
-      rRect(x+3, y+2, w-6, 3, 2, 'rgba(255,180,120,0.14)', null);
-    }
+    // ── Bandeau brillant en haut (spéculaire) ──
+    const shG = ctx.createLinearGradient(x, y, x, y + 10);
+    shG.addColorStop(0, c.shine); shG.addColorStop(1, 'rgba(255,255,255,0)');
+    rRect(x + 2, y + 1, w - 4, 9, 4, shG, null);
+
+    // Liseret brillant horizontal très fin
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 6, y + 2); ctx.lineTo(x + w - 6, y + 2); ctx.stroke();
   }
 }
 
@@ -1328,55 +1440,86 @@ function loadLevel(idx) {
 // BACKGROUND
 // ============================================================
 function drawBg() {
-  // Sky gradient (3-stop)
-  const g = ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,    levelData.bgTop);
-  g.addColorStop(0.65, levelData.bgBot);
-  g.addColorStop(1,    '#3D1A06');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // ── Ciel — dégradé riche 4 tons ──
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,    levelData.bgTop);
+  sky.addColorStop(0.45, levelData.bgBot);
+  sky.addColorStop(0.8,  '#5C2A08');
+  sky.addColorStop(1,    '#2A0E02');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
-  // Chocolate drips from top
-  ctx.fillStyle='rgba(80,36,8,0.13)';
-  for (let i=0;i<5;i++) {
-    const dx=((i*210+55 - camera.x*0.05)%(W+80)+W+80)%(W+80)-20;
-    ctx.beginPath(); ctx.moveTo(dx,0); ctx.lineTo(dx+16,0);
-    ctx.quadraticCurveTo(dx+18,32,dx+13,52);
-    ctx.quadraticCurveTo(dx+11,68,dx+14,85);
-    ctx.lineTo(dx+10,85); ctx.lineTo(dx+5,58);
-    ctx.quadraticCurveTo(dx+3,32,dx,0); ctx.fill();
+  // ── Soleil / lueur ambiante ──
+  const sunX = W * 0.78, sunY = H * 0.18;
+  const sunG = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 200);
+  sunG.addColorStop(0,   'rgba(255,230,150,0.22)');
+  sunG.addColorStop(0.4, 'rgba(255,180,80,0.08)');
+  sunG.addColorStop(1,   'rgba(255,120,0,0)');
+  ctx.fillStyle = sunG; ctx.fillRect(0, 0, W, H);
+
+  // ── Drips de chocolat depuis le haut ──
+  ctx.fillStyle = 'rgba(60,24,6,0.18)';
+  for (let i = 0; i < 7; i++) {
+    const dx = ((i * 185 + 40 - camera.x * 0.04) % (W + 100) + W + 100) % (W + 100) - 20;
+    const dw = 10 + (i % 3) * 5;
+    ctx.beginPath();
+    ctx.moveTo(dx, 0); ctx.lineTo(dx + dw, 0);
+    ctx.quadraticCurveTo(dx + dw + 4, 28 + i * 5, dx + dw - 2, 48 + i * 6);
+    ctx.quadraticCurveTo(dx + dw - 3, 65, dx + dw/2, 70 + i * 4);
+    ctx.quadraticCurveTo(dx + 2, 55, dx - 2, 35 + i * 3);
+    ctx.quadraticCurveTo(dx - 4, 18, dx, 0);
+    ctx.fill();
   }
 
-  // 3 parallax hill layers
-  const hillCfg = [
-    { col:'rgba(100,48,10,0.22)', spd:0.35, sz:90 },
-    { col:'rgba(78,34,8,0.17)',   spd:0.22, sz:120},
-    { col:'rgba(55,22,5,0.13)',   spd:0.12, sz:150},
+  // ── 5 couches de collines parallaxe ──
+  const hills = [
+    { a: 0.28, spd: 0.40, sz: 70,  yOff: -10 },
+    { a: 0.22, spd: 0.28, sz: 100, yOff:  10 },
+    { a: 0.16, spd: 0.18, sz: 130, yOff:  25 },
+    { a: 0.11, spd: 0.10, sz: 165, yOff:  40 },
+    { a: 0.07, spd: 0.05, sz: 200, yOff:  55 },
   ];
-  for (const {col, spd, sz} of hillCfg) {
-    ctx.fillStyle=col;
-    for (let i=0;i<8;i++) {
-      const hx=((i*250+i*30 - camera.x*spd)%(W+320)+W+320)%(W+320)-100;
-      ctx.beginPath(); ctx.arc(hx, H-20+sz*0.18, sz+(i*23%40), 0, Math.PI, true); ctx.fill();
+  for (const { a, spd, sz, yOff } of hills) {
+    ctx.fillStyle = `rgba(80,32,6,${a})`;
+    for (let i = 0; i < 9; i++) {
+      const hx = ((i * 260 + i * 20 - camera.x * spd) % (W + 340) + W + 340) % (W + 340) - 100;
+      const hr = sz + (i * 29 % 50);
+      ctx.beginPath(); ctx.arc(hx, H + yOff, hr, 0, Math.PI, true); ctx.fill();
     }
   }
 
-  // Floating Schoko-Bon shapes (far layer)
-  for (let i=0;i<10;i++) {
-    const bx=((i*188+60 - camera.x*0.07)%(W+230)+W+230)%(W+230);
-    const by=32+(i*79)%165 + Math.sin(frameCount*0.013+i)*10;
-    const br=5+i%5;
-    ctx.globalAlpha=0.09+0.07*Math.sin(frameCount*0.018+i);
-    ctx.fillStyle='#7B3A0C';
-    ctx.beginPath(); ctx.ellipse(bx,by,br*1.7,br,0.25,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.ellipse(bx-br*0.5,by-br*0.28,br*0.45,br*0.28,0,0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1;
+  // ── Arbres / éléments en chocolat ──
+  ctx.fillStyle = 'rgba(40,16,3,0.35)';
+  for (let i = 0; i < 5; i++) {
+    const tx = ((i * 330 + 60 - camera.x * 0.22) % (W + 300) + W + 300) % (W + 300) - 50;
+    const th = 80 + (i * 37 % 50);
+    // tronc
+    ctx.fillRect(tx - 8, H - th, 16, th);
+    // feuillage (boules de chocolat)
+    for (let j = 0; j < 3; j++) {
+      ctx.beginPath();
+      ctx.arc(tx + (j - 1) * 18, H - th - 10 - j * 12, 22 - j * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  // Bottom fog
-  const fog=ctx.createLinearGradient(0,H-55,0,H);
-  fog.addColorStop(0,'rgba(50,20,6,0)'); fog.addColorStop(1,'rgba(30,12,3,0.4)');
-  ctx.fillStyle=fog; ctx.fillRect(0,H-55,W,55);
+  // ── Candy flottants (couche lointaine) ──
+  for (let i = 0; i < 12; i++) {
+    const bx  = ((i * 178 + 55 - camera.x * 0.06) % (W + 240) + W + 240) % (W + 240);
+    const by  = 28 + (i * 81) % 160 + Math.sin(frameCount * 0.012 + i) * 12;
+    const br  = 5 + i % 6;
+    const alp = 0.08 + 0.06 * Math.sin(frameCount * 0.016 + i);
+    ctx.globalAlpha = alp;
+    ctx.fillStyle = '#7B3A0C';
+    ctx.beginPath(); ctx.ellipse(bx, by, br * 1.7, br, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.ellipse(bx - br * 0.5, by - br * 0.3, br * 0.5, br * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Brume de sol ──
+  const fog = ctx.createLinearGradient(0, H - 80, 0, H);
+  fog.addColorStop(0, 'rgba(40,14,2,0)'); fog.addColorStop(1, 'rgba(20,6,1,0.55)');
+  ctx.fillStyle = fog; ctx.fillRect(0, H - 80, W, 80);
 }
 
 // ============================================================
@@ -1384,26 +1527,51 @@ function drawBg() {
 // ============================================================
 function drawEndZone() {
   if (!lEndZone) return;
-  const {x,y,w,h} = lEndZone;
-  const pulse = 1 + 0.08*Math.sin(frameCount*0.1);
+  const {x, y, w, h} = lEndZone;
+  const t     = frameCount * 0.06;
+  const pulse = 1 + 0.07 * Math.sin(t);
+
   ctx.save();
-  ctx.translate(x+w/2, y+h/2);
+  ctx.translate(x + w/2, y + h/2);
+
+  // Halo animé tournant
+  for (let i = 0; i < 8; i++) {
+    const a = t + i * Math.PI / 4;
+    const r = 38 + 6 * Math.sin(t * 2 + i);
+    ctx.globalAlpha = 0.18 + 0.1 * Math.sin(t + i);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Glow radial
+  const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 55);
+  glow.addColorStop(0, 'rgba(255,220,80,0.7)');
+  glow.addColorStop(0.5, 'rgba(255,150,30,0.25)');
+  glow.addColorStop(1, 'rgba(255,80,0,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 55, 0, Math.PI * 2); ctx.fill();
+
   ctx.scale(pulse, pulse);
 
-  const g = ctx.createRadialGradient(0,0,5,0,0,38);
-  g.addColorStop(0,'rgba(255,215,0,0.85)'); g.addColorStop(1,'rgba(255,100,0,0)');
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,38,0,Math.PI*2); ctx.fill();
+  // Cadre
+  ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 15;
+  rRect(-w/2, -h/2, w, h, 7, '#5C2808', '#FFD700', 2.5);
+  ctx.shadowBlur = 0;
 
-  rRect(-w/2,-h/2,w,h,6,'#8B4513',null);
-  const ig=ctx.createLinearGradient(-w/2,0,w/2,0);
-  ig.addColorStop(0,'#FFD700'); ig.addColorStop(0.5,'#FFF8DC'); ig.addColorStop(1,'#FFD700');
-  rRect(-w/2+5,-h/2+5,w-10,h-10,4,ig,null);
+  // Intérieur brillant
+  const ig = ctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+  ig.addColorStop(0, '#FFD700'); ig.addColorStop(0.4, '#FFFACD'); ig.addColorStop(1, '#FFA500');
+  rRect(-w/2+4, -h/2+4, w-8, h-8, 5, ig, null);
 
-  ctx.font='28px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('⭐',0,0);
-  ctx.fillStyle='#5C3317'; ctx.font='bold 10px Arial';
-  ctx.fillText('SORTIE',0,h/2+12);
-  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  // Étoile animée
+  ctx.font = '30px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.save(); ctx.rotate(Math.sin(t) * 0.15);
+  ctx.fillText('⭐', 0, 0); ctx.restore();
+
+  // Label
+  ctx.fillStyle = '#3D1A00'; ctx.font = 'bold 10px Arial';
+  ctx.fillText('SORTIE', 0, h/2 + 14);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.restore();
 }
 
