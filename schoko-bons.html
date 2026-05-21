@@ -113,40 +113,170 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { keys[e.code] = { held: false, just: false }; });
 
-// ── Touch / mobile controls ──
-(function initTouch() {
-  const zones = {
-    left:  { held: false, code: 'ArrowLeft'  },
-    right: { held: false, code: 'ArrowRight' },
-    jump:  { held: false, code: 'Space'      },
+// ============================================================
+// SOUND ENGINE — Web Audio API (synthesised, no files)
+// ============================================================
+const sfx = (() => {
+  let _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === 'suspended') _ac.resume();
+    return _ac;
+  }
+  function tone(freq, type, vol, dur, freqEnd, atk=0.005) {
+    try {
+      const a = ac(), o = a.createOscillator(), g = a.createGain();
+      o.connect(g); g.connect(a.destination);
+      o.type = type;
+      o.frequency.setValueAtTime(freq, a.currentTime);
+      if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, a.currentTime + dur);
+      g.gain.setValueAtTime(0, a.currentTime);
+      g.gain.linearRampToValueAtTime(vol, a.currentTime + atk);
+      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+      o.start(a.currentTime); o.stop(a.currentTime + dur + 0.02);
+    } catch(e) {}
+  }
+  function noise(vol, dur, freq=600, Q=1) {
+    try {
+      const a = ac(), len = Math.ceil(a.sampleRate * dur);
+      const buf = a.createBuffer(1, len, a.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
+      const src = a.createBufferSource(); src.buffer = buf;
+      const filt = a.createBiquadFilter(); filt.type='bandpass';
+      filt.frequency.value = freq; filt.Q.value = Q;
+      const g = a.createGain();
+      g.gain.setValueAtTime(vol, a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+      src.connect(filt); filt.connect(g); g.connect(a.destination);
+      src.start(); src.stop(a.currentTime + dur + 0.01);
+    } catch(e) {}
+  }
+  return {
+    jump()       { tone(300,'square',0.22,0.18,600); },
+    doubleJump() { tone(500,'square',0.18,0.09,1000); setTimeout(()=>tone(750,'square',0.15,0.09,1500),75); },
+    wallJump()   { tone(350,'square',0.20,0.14,550); noise(0.12,0.08,500,2); },
+    land()       { noise(0.30,0.10,110,0.4); tone(75,'sine',0.28,0.14,38); },
+    collect()    { tone(900,'sine',0.16,0.12,1400); setTimeout(()=>tone(1400,'sine',0.12,0.10,1800),70); },
+    powerup()    { [440,554,659,880].forEach((f,i)=>setTimeout(()=>tone(f,'triangle',0.20,0.14,f*1.4),i*65)); },
+    dash()       { noise(0.22,0.15,1400,0.7); tone(180,'sawtooth',0.14,0.14,700); },
+    damage()     { tone(200,'sawtooth',0.28,0.22,70); noise(0.22,0.18,280,0.8); },
+    shield()     { tone(700,'sine',0.18,0.07,180); noise(0.18,0.10,2200,2.5); },
+    die()        { tone(420,'sawtooth',0.28,0.38,55); setTimeout(()=>tone(180,'sine',0.18,0.45,35),120); },
+    enemyKill()  { tone(180,'square',0.22,0.10,70); noise(0.28,0.08,350,1.8); },
+    levelWin()   { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.22,0.32,f*1.15),i*110)); },
+    gameOver()   { [440,370,330,220].forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.20,0.48,f*0.68),i*190)); },
+    quizOk()     { [660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.18,0.20,f*1.3),i*80)); },
+    quizFail()   { tone(280,'sawtooth',0.22,0.30,140); setTimeout(()=>tone(200,'sine',0.18,0.25,100),180); },
+    menuClick()  { tone(480,'sine',0.12,0.08,720); },
   };
-  function codeFromTouch(t) {
-    // Left 30% = left, Right 30% = right, Middle/top = jump
-    const rx = t.clientX / window.innerWidth;
-    if (rx < 0.30) return 'left';
-    if (rx > 0.70) return 'right';
-    return 'jump';
+})();
+
+// ============================================================
+// TOUCH / MOBILE CONTROLS
+// ============================================================
+const touch = (() => {
+  let _mobile = false;
+
+  // Virtual button layout in canvas coords (960×540)
+  const BTNS = {
+    left:  { x:15,  y:448, w:78, h:72, code:'ArrowLeft',  label:'◀', active:false },
+    right: { x:108, y:448, w:78, h:72, code:'ArrowRight', label:'▶', active:false },
+    jump:  { x:862, y:443, w:80, h:80, code:'Space',       label:'▲', active:false },
+    dash:  { x:768, y:453, w:74, h:70, code:'ShiftLeft',   label:'⚡', active:false },
+  };
+  const _held = {};  // touchId → btn name
+
+  function _xy(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    return [(clientX - r.left) * VW / r.width, (clientY - r.top) * VH / r.height];
   }
-  function press(zone) {
-    if (!zones[zone].held) {
-      zones[zone].held = true;
-      const c = zones[zone].code;
-      keys[c] = { held: true, just: true };
-    }
+  function _btnAt(cx, cy) {
+    for (const [n, b] of Object.entries(BTNS))
+      if (cx >= b.x && cx < b.x+b.w && cy >= b.y && cy < b.y+b.h) return n;
+    return null;
   }
-  function release(zone) {
-    zones[zone].held = false;
-    keys[zones[zone].code] = { held: false, just: false };
+  function _press(n) {
+    const b = BTNS[n];
+    if (!b.active) { b.active=true; keys[b.code]={ held:true, just:true }; }
   }
+  function _release(n) {
+    const b = BTNS[n];
+    b.active=false; keys[b.code]={ held:false, just:false };
+  }
+
   canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    for (const t of e.changedTouches) press(codeFromTouch(t));
-  }, { passive: false });
+    e.preventDefault(); _mobile = true;
+    for (const t of e.changedTouches) {
+      const [cx,cy] = _xy(t.clientX, t.clientY);
+      if (gameState === 'quiz' && !quizRevealed) {
+        for (let i=0;i<4;i++) {
+          const ay=210+i*55;
+          if (cx>=100 && cx<=860 && cy>=ay && cy<ay+46)
+            keys[`Digit${i+1}`]={ held:false, just:true };
+        }
+        continue;
+      }
+      if (gameState !== 'playing') { keys['Enter']={ held:false, just:true }; continue; }
+      const n = _btnAt(cx,cy);
+      if (n) { _held[t.identifier]=n; _press(n); }
+    }
+  }, { passive:false });
+
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
-    for (const t of e.changedTouches) release(codeFromTouch(t));
-  }, { passive: false });
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+    for (const t of e.changedTouches) {
+      const n = _held[t.identifier];
+      if (n) { delete _held[t.identifier]; _release(n); }
+    }
+  }, { passive:false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (gameState !== 'playing') continue;
+      const [cx,cy] = _xy(t.clientX, t.clientY);
+      const old = _held[t.identifier], next = _btnAt(cx,cy);
+      if (old !== next) {
+        if (old) { delete _held[t.identifier]; _release(old); }
+        if (next) { _held[t.identifier]=next; _press(next); }
+      }
+    }
+  }, { passive:false });
+
+  function draw() {
+    if (!_mobile || gameState !== 'playing') return;
+    ctx.save();
+    for (const b of Object.values(BTNS)) {
+      // Clipped background
+      ctx.save();
+      _clipRR(b.x, b.y, b.w, b.h, 14); ctx.clip();
+      const bg = ctx.createLinearGradient(b.x, b.y, b.x, b.y+b.h);
+      if (b.active) {
+        bg.addColorStop(0,'rgba(255,220,80,0.82)'); bg.addColorStop(1,'rgba(190,60,10,0.90)');
+      } else {
+        bg.addColorStop(0,'rgba(255,200,80,0.32)'); bg.addColorStop(1,'rgba(100,30,5,0.52)');
+      }
+      ctx.fillStyle=bg; ctx.fillRect(b.x,b.y,b.w,b.h);
+      ctx.fillStyle='rgba(255,255,255,0.10)'; ctx.fillRect(b.x,b.y,b.w,b.h*0.38);
+      ctx.restore();
+      // Border
+      ctx.strokeStyle = b.active ? '#FFD700' : 'rgba(255,180,60,0.50)';
+      ctx.lineWidth   = b.active ? 2.5 : 1.5;
+      _clipRR(b.x, b.y, b.w, b.h, 14); ctx.stroke();
+      // Label
+      ctx.globalAlpha = b.active ? 1.0 : 0.60;
+      ctx.fillStyle='#FFFFFF';
+      ctx.font = b.label.length > 1 ? 'bold 18px Arial' : 'bold 30px Arial';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(b.label, b.x+b.w/2, b.y+b.h/2);
+      ctx.globalAlpha=1;
+    }
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.restore();
+  }
+
+  return { draw };
 })();
 
 function held(c)  { return !!(keys[c] && keys[c].held); }
@@ -371,7 +501,7 @@ class Player {
       }
       // Dash trigger (Shift)
       if ((just('ShiftLeft') || just('ShiftRight')) && this.dashCooldown === 0 && this.pu.dash > 0) {
-        this.dashT = 12; this.dashCooldown = 55;
+        sfx.dash(); this.dashT = 12; this.dashCooldown = 55;
         this.sqX = 0.52; this.sqY = 1.55;
         burst(this.x + this.w/2, this.y + this.h/2, '#FF44CC', 12, 7);
       }
@@ -408,17 +538,20 @@ class Player {
         this.jumps = 1; this.jumpBuffer = 0;
         this.sqX = 0.72; this.sqY = 1.32;
         burst(this.x + this.w/2, this.y + this.h/2, '#FFD700', 10, 5);
+        sfx.wallJump();
       } else if (this.onGround || this.coyoteT > 0) {
         this.vy = JUMP_FORCE * this.jumpMult;
         this.jumps = 1; this.jumpBuffer = 0; this.coyoteT = 0;
         this.sqX = 0.70; this.sqY = 1.38;
         burst(this.x + this.w/2, this.y + this.h, '#C8860A', 6, 3);
+        sfx.jump();
       } else if (this.jumps < this.maxJumps) {
         this.vy = JUMP_FORCE * this.jumpMult * 0.88;
         this.jumps++; this.jumpBuffer = 0;
         this.sqX = 0.72; this.sqY = 1.32;
         burst(this.x + this.w/2, this.y + this.h/2, '#00CFFF', 14, 5);
         burst(this.x + this.w/2, this.y + this.h/2, '#FFFFFF', 6, 3);
+        sfx.doubleJump();
       }
     }
 
@@ -458,6 +591,7 @@ class Player {
         c.collected = true;
         score += 10;
         burst(c.x, c.y, '#8B4513', 6, 3);
+        sfx.collect();
       }
     }
 
@@ -470,6 +604,7 @@ class Player {
         this.pu[p.type] = PU[p.type].dur;
         burst(p.x + p.w/2, p.y + p.h/2, PU[p.type].col, 12, 5);
         notify(PU[p.type].label, PU[p.type].col);
+        sfx.powerup();
       }
     }
 
@@ -485,12 +620,14 @@ class Player {
         this.vy = -9;
         score += 50;
         burst(e.x + e.w/2, e.y, '#5C3317', 12, 5);
+        sfx.enemyKill();
       } else if (this.iframes === 0) {
         if (this.pu.shield > 0) {
           this.pu.shield = 0;
           this.iframes = 60;
           burst(this.x + this.w/2, this.y + this.h/2, '#FFF', 14, 4);
           notify('Bouclier brisé!', '#AAE');
+          sfx.shield();
         } else {
           this.takeDamage();
         }
@@ -514,7 +651,7 @@ class Player {
                    { x: p.x, y: p.y, w: p.w, h: p.h })) continue;
       if (this.vy >= 0) {
         this.y        = p.y - this.h;
-        if (this.vy > 4) { this.sqX = 1.42; this.sqY = 0.60; camera.shake = Math.min(camera.shake + this.vy * 0.45, 10); }
+        if (this.vy > 4) { this.sqX = 1.42; this.sqY = 0.60; camera.shake = Math.min(camera.shake + this.vy * 0.45, 10); sfx.land(); }
         this.vy       = 0;
         this.onGround = true;
         this.jumps    = 0;
@@ -530,6 +667,7 @@ class Player {
     this.hp--;
     this.iframes = 90;
     camera.shake = 9;
+    sfx.damage();
     if (this.hp <= 0) { this.die(); return; }
     this.vy = -8;
     this.vx = this.facing * -5;
@@ -538,10 +676,11 @@ class Player {
   die() {
     if (this.dead) return;
     this.dead = true;
+    sfx.die();
     burst(this.x + this.w/2, this.y + this.h/2, '#E8001C', 20, 6);
     lives--;
     setTimeout(() => {
-      if (lives <= 0) gameState = 'gameover';
+      if (lives <= 0) { sfx.gameOver(); gameState = 'gameover'; }
       else            loadLevel(currentLevel);
     }, 900);
   }
@@ -2153,6 +2292,9 @@ function handleQuiz() {
       if (i === QUIZZES[currentLevel].ok) {
         score += 100;
         notify('+100 BONUS! Bravo!', '#00FF88');
+        sfx.quizOk();
+      } else {
+        sfx.quizFail();
       }
     }
   }
@@ -2164,7 +2306,7 @@ function handleQuiz() {
       quizTimer    = 0;
       const next = currentLevel + 1;
       if (next < LEVELS.length) loadLevel(next);
-      else gameState = 'win';
+      else { sfx.levelWin(); gameState = 'win'; }
     }
   }
 }
@@ -2228,7 +2370,7 @@ function drawQuiz() {
     ctx.fillText(`Suite dans ${Math.ceil(quizTimer/60)}s...`, W/2, H-65);
   } else {
     ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.font='14px Arial'; ctx.textAlign='center';
-    ctx.fillText('Appuie sur 1, 2, 3 ou 4 pour répondre', W/2, 454);
+    ctx.fillText('Appuie sur 1 2 3 4  ·  ou touche une réponse', W/2, 454);
   }
   ctx.textAlign='left';
 }
@@ -2506,7 +2648,7 @@ function drawMenu() {
   ctx.textAlign='left';
 
   if (just('Enter')||just('Space')) {
-    score=0; lives=3; loadLevel(0);
+    sfx.menuClick(); score=0; lives=3; loadLevel(0);
   }
 }
 
@@ -2604,6 +2746,7 @@ function loop() {
       quizSelected = -1;
       quizRevealed = false;
       quizTimer    = 0;
+      sfx.levelWin();
     }
   }
 
@@ -2626,6 +2769,7 @@ function loop() {
   ctx.restore();
 
   drawHUD();
+  touch.draw();
   drawNotifications();
 
   requestAnimationFrame(loop);
