@@ -15,13 +15,16 @@ canvas.height = VH;
 let W = VW, H = VH;
 
 function resizeCanvas() {
-  const sx = window.innerWidth  / VW;
-  const sy = window.innerHeight / VH;
-  const s  = Math.min(sx, sy);
+  // visualViewport is more accurate on iOS Safari (excludes address-bar / keyboard)
+  const vp = window.visualViewport;
+  const vw = vp ? vp.width  : window.innerWidth;
+  const vh = vp ? vp.height : window.innerHeight;
+  const s  = Math.min(vw / VW, vh / VH);
   canvas.style.width  = Math.round(VW * s) + 'px';
   canvas.style.height = Math.round(VH * s) + 'px';
 }
 window.addEventListener('resize', resizeCanvas);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // ============================================================
@@ -78,24 +81,50 @@ document.addEventListener('keydown', e => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
 });
 document.addEventListener('keyup', e => { keys[e.code] = { held: false, just: false }; });
+// iOS Safari: block elastic scroll / page bounce at document level
+document.addEventListener('touchmove',  e => e.preventDefault(), { passive: false });
+document.addEventListener('touchstart', e => { if (e.target !== canvas) e.preventDefault(); }, { passive: false });
 
 // ============================================================
 // SOUND ENGINE — Web Audio API (synthesised, no files)
 // ============================================================
 const sfx = (() => {
   let _ac = null;
+
+  // iOS Safari: AudioContext must be created AND unlocked (via silent buffer)
+  // inside a direct user-gesture handler. We do it on the very first touch.
+  function _unlock() {
+    if (!_ac) {
+      try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
+    }
+    if (_ac.state === 'suspended') _ac.resume();
+    // Play a 1-frame silent buffer — required to unlock audio on iOS
+    try {
+      const buf = _ac.createBuffer(1, 1, _ac.sampleRate);
+      const src = _ac.createBufferSource();
+      src.buffer = buf; src.connect(_ac.destination);
+      src.start(0);
+    } catch(e) {}
+  }
+  document.addEventListener('touchstart', _unlock, { once: true, passive: true });
+  document.addEventListener('touchend',   _unlock, { once: true, passive: true });
+  document.addEventListener('mousedown',  _unlock, { once: true, passive: true });
+
   function ac() {
-    if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (!_ac) {
+      try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
+    }
     if (_ac.state === 'suspended') _ac.resume();
     return _ac;
   }
   function tone(freq, type, vol, dur, freqEnd, atk=0.005) {
     try {
-      const a = ac(), o = a.createOscillator(), g = a.createGain();
+      const a = ac(); if (!a) return;
+      const o = a.createOscillator(), g = a.createGain();
       o.connect(g); g.connect(a.destination);
       o.type = type;
       o.frequency.setValueAtTime(freq, a.currentTime);
-      if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, a.currentTime + dur);
+      if (freqEnd) o.frequency.exponentialRampToValueAtTime(Math.max(0.001, freqEnd), a.currentTime + dur);
       g.gain.setValueAtTime(0, a.currentTime);
       g.gain.linearRampToValueAtTime(vol, a.currentTime + atk);
       g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
@@ -104,7 +133,8 @@ const sfx = (() => {
   }
   function noise(vol, dur, freq=600, Q=1) {
     try {
-      const a = ac(), len = Math.ceil(a.sampleRate * dur);
+      const a = ac(); if (!a) return;
+      const len = Math.max(1, Math.ceil(a.sampleRate * dur));
       const buf = a.createBuffer(1, len, a.sampleRate);
       const d = buf.getChannelData(0);
       for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
