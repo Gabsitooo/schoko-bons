@@ -30,7 +30,7 @@ html, body {
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
   <script>
 'use strict';
 
@@ -1158,266 +1158,313 @@ class PowerUpItem {
 // ============================================================
 // BLOCK RENDERER — textures haute qualité par type
 // ============================================================
+// helper — clip to rounded rect
+function _clipRR(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+
 function drawBlock(x, y, w, h, type) {
   ctx.save();
+  const R = 7;
 
-  // Drop shadow
-  ctx.shadowColor = 'rgba(0,0,0,0.42)';
-  ctx.shadowBlur = 10; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 6;
-  ctx.fillStyle = 'rgba(0,0,0,0.01)'; ctx.fillRect(x, y, w, h);
+  // ── Drop shadow ──
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 12; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 7;
+  _clipRR(x, y, w, h, R); ctx.fillStyle = 'rgba(0,0,0,0.01)'; ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
 
+  // ── Clip all interior drawing to rounded rect ──
+  _clipRR(x, y, w, h, R); ctx.clip();
+
+  // ════════════════════════ CHOCOLATE ════════════════════════
   if (type === 'chocolate') {
-    // Main gradient body
-    const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, '#7B3F12'); mg.addColorStop(0.55, '#5C2A08'); mg.addColorStop(1, '#3D1A04');
-    ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
-
-    // Chocolate bar brick grid
-    const cellW = 34;
-    const rows = Math.max(1, Math.floor((h - 8) / 14));
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    for (let r = 1; r <= rows; r++) {
-      const ry = y + r * 14;
-      if (ry < y + h - 8) ctx.fillRect(x, ry - 1, w, 2);
-    }
-    for (let r = 0; r <= rows; r++) {
-      const offset = (r % 2) * cellW * 0.5;
-      const cols = Math.ceil(w / cellW) + 1;
-      for (let c = 1; c <= cols; c++) {
-        const vx = x + c * cellW - offset;
-        if (vx > x + 2 && vx < x + w - 2)
-          ctx.fillRect(vx - 1, y + r * 14, 2, Math.min(14, h - 8 - r * 14));
-      }
-    }
-    // Per-brick highlight
-    ctx.fillStyle = 'rgba(255,200,130,0.065)';
-    for (let r = 0; r <= rows; r++) {
-      const offset = (r % 2) * cellW * 0.5;
-      for (let c = 0; c < Math.ceil(w / cellW) + 1; c++) {
-        const bx = x + c * cellW - offset;
-        const clipX = Math.max(bx + 2, x + 2);
-        const rw = Math.min(bx + cellW - 4, x + w - 2) - clipX;
-        if (rw > 0) ctx.fillRect(clipX, y + r * 14 + 1, rw, 3);
-      }
-    }
-    // Diagonal crack details
-    if (w > 60) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.2;
-      const crx = x + w * 0.38;
-      ctx.beginPath(); ctx.moveTo(crx, y+3); ctx.lineTo(crx+8, y+h*0.48); ctx.lineTo(crx+5, y+h*0.72); ctx.stroke();
-      if (w > 120) {
-        ctx.beginPath(); ctx.moveTo(x+w*0.72, y+2); ctx.lineTo(x+w*0.75, y+h*0.42); ctx.stroke();
-      }
-    }
-    // Top specular strip
-    const shG = ctx.createLinearGradient(x, y, x, y+7);
-    shG.addColorStop(0, 'rgba(255,210,130,0.42)'); shG.addColorStop(1, 'rgba(255,210,130,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x+3, y, w-6, 7);
-    // Bottom 3D face
-    const edgeG = ctx.createLinearGradient(x, y+h-8, x, y+h);
-    edgeG.addColorStop(0, '#2A1006'); edgeG.addColorStop(1, '#180602');
-    ctx.fillStyle = edgeG; ctx.fillRect(x, y+h-8, w, 8);
-    // Edge line
-    ctx.strokeStyle = 'rgba(255,220,160,0.22)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x+5, y+1); ctx.lineTo(x+w-5, y+1); ctx.stroke();
-
-  } else if (type === 'cream') {
     // Base gradient
     const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, '#FFF8F2'); mg.addColorStop(0.45, '#F5E8C8'); mg.addColorStop(1, '#E0CC90');
+    mg.addColorStop(0, '#8B4818'); mg.addColorStop(0.5, '#5C2A08'); mg.addColorStop(1, '#321404');
     ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
-    // Wavy cream top
-    ctx.fillStyle = '#FFFDF8';
+
+    // Brick grid — staggered rows
+    const cW = 34, cH = 16;
+    const rows = Math.max(1, Math.ceil((h-8) / cH));
+    // Horizontal grooves
+    for (let r = 1; r <= rows; r++) {
+      const gy = y + r * cH;
+      if (gy < y+h-8) {
+        ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(x, gy-1, w, 2);
+        ctx.fillStyle = 'rgba(255,200,130,0.07)'; ctx.fillRect(x, gy+1, w, 1);
+      }
+    }
+    // Vertical grooves
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    for (let r = 0; r <= rows; r++) {
+      const off = (r % 2) * cW * 0.5;
+      for (let c = 1; c <= Math.ceil(w/cW)+1; c++) {
+        const vx = x + c*cW - off;
+        if (vx > x+2 && vx < x+w-2) ctx.fillRect(vx-1, y+r*cH, 2, Math.min(cH, y+h-8-r*cH));
+      }
+    }
+    // Per-brick top highlight
+    ctx.fillStyle = 'rgba(255,220,150,0.09)';
+    for (let r = 0; r <= rows; r++) {
+      const off = (r%2)*cW*0.5;
+      for (let c = 0; c < Math.ceil(w/cW)+1; c++) {
+        const bx = x+c*cW-off;
+        const bw2 = cW-4;
+        const clipL = Math.max(bx+2, x+2);
+        const rw = Math.min(bx+bw2, x+w-2) - clipL;
+        if (rw > 0) ctx.fillRect(clipL, y+r*cH+1, rw, 3);
+      }
+    }
+    // Diagonal cracks
+    if (w > 60) {
+      ctx.strokeStyle = 'rgba(20,8,2,0.4)'; ctx.lineWidth = 1.2;
+      const crx = x+w*0.37;
+      ctx.beginPath(); ctx.moveTo(crx, y+2); ctx.lineTo(crx+9, y+h*0.46); ctx.lineTo(crx+6, y+h*0.7); ctx.stroke();
+      if (w > 120) { ctx.beginPath(); ctx.moveTo(x+w*0.72, y+3); ctx.lineTo(x+w*0.75, y+h*0.44); ctx.stroke(); }
+    }
+    // Top specular radial glow
+    const sg = ctx.createRadialGradient(x+w*0.2, y+2, 0, x+w*0.5, y+h*0.3, w*0.7);
+    sg.addColorStop(0, 'rgba(255,220,150,0.38)'); sg.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = sg; ctx.fillRect(x, y, w, h*0.5);
+    // Bottom 3D face
+    const eg = ctx.createLinearGradient(x, y+h-9, x, y+h);
+    eg.addColorStop(0, '#240E04'); eg.addColorStop(1, '#120602');
+    ctx.fillStyle = eg; ctx.fillRect(x, y+h-9, w, 9);
+    // Top edge line
+    ctx.fillStyle = 'rgba(255,230,170,0.25)'; ctx.fillRect(x+4, y, w-8, 1.5);
+
+  // ════════════════════════ CREAM ════════════════════════
+  } else if (type === 'cream') {
+    // Base
+    const mg = ctx.createLinearGradient(x, y, x, y+h);
+    mg.addColorStop(0, '#FFFAF2'); mg.addColorStop(0.5, '#F4E8C8'); mg.addColorStop(1, '#DECBA0');
+    ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
+    // Soft horizontal cream bands
+    for (let i = 1; i < 5; i++) {
+      ctx.fillStyle = i%2===0 ? 'rgba(255,255,255,0.1)' : 'rgba(200,160,80,0.05)';
+      ctx.fillRect(x, y + i*(h/5), w, h/5);
+    }
+    // Wavy top fill
+    ctx.fillStyle = '#FFFEF8';
     ctx.beginPath();
-    const wSteps = Math.ceil(w / 10);
-    for (let i = 0; i <= wSteps; i++) {
-      const wx = x + w * i / wSteps;
-      const wy = y + 5 + Math.sin(i * 1.3) * 4.5;
-      i === 0 ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+    const wS = Math.ceil(w/8);
+    for (let i = 0; i <= wS; i++) {
+      const wx = x + w*i/wS, wy = y + 4 + Math.sin(i*1.25)*4;
+      i===0 ? ctx.moveTo(wx,wy) : ctx.lineTo(wx,wy);
     }
     ctx.lineTo(x+w, y); ctx.lineTo(x, y); ctx.closePath(); ctx.fill();
-    // Cream dollop peaks
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    const dollops = Math.max(2, Math.floor(w / 28));
-    for (let i = 0; i < dollops; i++) {
-      const dx = x + 14 + i * ((w - 28) / Math.max(dollops - 1, 1));
-      ctx.beginPath(); ctx.ellipse(dx, y+5, 5, 4.5, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(dx, y+2, 2.5, 3, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
+    // Dollop peaks
+    const dN = Math.max(2, Math.floor(w/26));
+    for (let i = 0; i < dN; i++) {
+      const dx = x+13+i*((w-26)/Math.max(dN-1,1));
+      // Shadow under dollop
+      ctx.fillStyle = 'rgba(180,140,70,0.18)';
+      ctx.beginPath(); ctx.ellipse(dx+1, y+11, 6, 3, 0, 0, Math.PI*2); ctx.fill();
+      // Main dollop
+      const dg = ctx.createRadialGradient(dx-1, y+3, 0, dx, y+5, 7);
+      dg.addColorStop(0, '#FFFFFF'); dg.addColorStop(0.6, '#FBF4E8'); dg.addColorStop(1, '#F0E0C0');
+      ctx.fillStyle = dg;
+      ctx.beginPath(); ctx.ellipse(dx, y+6, 6, 5, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(dx, y+2, 3, 3.5, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
     }
-    // Cream shadow under top
-    ctx.fillStyle = 'rgba(200,168,90,0.15)'; ctx.fillRect(x+2, y+10, w-4, 4);
     // Segment lines
-    ctx.strokeStyle = 'rgba(200,168,80,0.22)'; ctx.lineWidth = 1;
-    for (let sx = x + 40; sx < x + w - 15; sx += 40) {
+    ctx.strokeStyle = 'rgba(190,155,75,0.22)'; ctx.lineWidth = 1;
+    for (let sx = x+38; sx < x+w-12; sx+=38) {
       ctx.beginPath(); ctx.moveTo(sx, y+10); ctx.lineTo(sx, y+h-6); ctx.stroke();
     }
     // Sugar sparkle dots
-    ctx.fillStyle = 'rgba(255,235,160,0.52)';
-    for (let i = 0; i < Math.floor(w / 18); i++) {
-      ctx.beginPath(); ctx.arc(x+9+i*18+(i*7%11)-5, y+h*0.55+(i*5%8)-4, 1.5, 0, Math.PI*2); ctx.fill();
+    for (let i = 0; i < Math.floor(w/16); i++) {
+      const dα = 0.3+0.25*Math.sin(frameCount*0.07+i);
+      ctx.fillStyle = `rgba(255,235,150,${dα})`;
+      ctx.beginPath(); ctx.arc(x+8+i*16+(i*7%11)-5, y+h*0.58+(i*5%9)-4, 1.5, 0, Math.PI*2); ctx.fill();
     }
     // Top shine
-    const shG = ctx.createLinearGradient(x, y, x, y+10);
-    shG.addColorStop(0, 'rgba(255,255,255,0.72)'); shG.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x+2, y, w-4, 10);
-    // Bottom edge
-    const edgeG = ctx.createLinearGradient(x, y+h-7, x, y+h);
-    edgeG.addColorStop(0, '#C8A060'); edgeG.addColorStop(1, '#906828');
-    ctx.fillStyle = edgeG; ctx.fillRect(x, y+h-7, w, 7);
-    ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x+5, y+1); ctx.lineTo(x+w-5, y+1); ctx.stroke();
+    const sg = ctx.createLinearGradient(x, y, x, y+12);
+    sg.addColorStop(0,'rgba(255,255,255,0.75)'); sg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=sg; ctx.fillRect(x+2, y, w-4, 12);
+    // Bottom caramel edge
+    const eg = ctx.createLinearGradient(x, y+h-8, x, y+h);
+    eg.addColorStop(0,'#C8A05A'); eg.addColorStop(1,'#906020');
+    ctx.fillStyle=eg; ctx.fillRect(x, y+h-8, w, 8);
 
+  // ════════════════════════ NOUGAT ════════════════════════
   } else if (type === 'nougat') {
-    // Base gradient
+    // Base
     const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, '#E8B840'); mg.addColorStop(0.5, '#C47818'); mg.addColorStop(1, '#8A5208');
+    mg.addColorStop(0, '#EEC040'); mg.addColorStop(0.5, '#C07818'); mg.addColorStop(1, '#885008');
     ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
-    // Horizontal wood-grain lines
-    const grainCount = Math.max(3, Math.floor((h - 8) / 4));
-    for (let i = 0; i < grainCount; i++) {
-      ctx.strokeStyle = i % 2 === 0 ? 'rgba(255,220,130,0.16)' : 'rgba(0,0,0,0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y+i*4); ctx.lineTo(x+w, y+i*4); ctx.stroke();
+    // Wood grain lines
+    const gN = Math.max(4, Math.floor((h-8)/3.5));
+    for (let i = 0; i < gN; i++) {
+      ctx.strokeStyle = i%3===0 ? 'rgba(255,230,140,0.18)' : (i%3===1 ? 'rgba(0,0,0,0.1)' : 'rgba(255,200,80,0.07)');
+      ctx.lineWidth = i%3===0 ? 1.5 : 1;
+      ctx.beginPath(); ctx.moveTo(x, y+i*3.5); ctx.lineTo(x+w, y+i*3.5); ctx.stroke();
     }
-    // Plank separators with nail heads
-    const planks = Math.max(1, Math.floor(w / 48));
-    for (let i = 1; i < planks; i++) {
-      const sx = x + i * (w / planks);
-      ctx.strokeStyle = 'rgba(90,50,10,0.38)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sx, y+2); ctx.lineTo(sx, y+h-8); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,230,130,0.22)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(sx+2, y+2); ctx.lineTo(sx+2, y+h-8); ctx.stroke();
-      for (const ny2 of [y + h*0.3, y + h*0.65]) {
-        ctx.fillStyle = '#7A6030';
-        ctx.beginPath(); ctx.arc(sx, ny2, 2.8, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'rgba(255,230,140,0.45)';
-        ctx.beginPath(); ctx.arc(sx-0.8, ny2-0.8, 1.2, 0, Math.PI*2); ctx.fill();
+    // Plank separators
+    const pN = Math.max(1, Math.floor(w/48));
+    for (let i = 1; i < pN; i++) {
+      const sx = x + i*(w/pN);
+      ctx.strokeStyle = 'rgba(80,42,8,0.4)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx,y+2); ctx.lineTo(sx,y+h-8); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,230,130,0.25)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx+2,y+2); ctx.lineTo(sx+2,y+h-8); ctx.stroke();
+      for (const ny2 of [y+h*0.28, y+h*0.62]) {
+        // Nail shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath(); ctx.arc(sx+0.8, ny2+1, 3.2, 0, Math.PI*2); ctx.fill();
+        // Nail body
+        const ng2 = ctx.createRadialGradient(sx-1, ny2-1, 0, sx, ny2, 3.2);
+        ng2.addColorStop(0,'#C0A050'); ng2.addColorStop(0.5,'#807030'); ng2.addColorStop(1,'#504020');
+        ctx.fillStyle=ng2; ctx.beginPath(); ctx.arc(sx, ny2, 3.2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle='rgba(255,240,160,0.5)';
+        ctx.beginPath(); ctx.arc(sx-1, ny2-1, 1.2, 0, Math.PI*2); ctx.fill();
       }
     }
-    // Hazelnut decorations
-    const nutCount = Math.max(2, Math.floor(w / 40));
-    for (let i = 0; i < nutCount; i++) {
-      const nx = x + 20 + i * ((w - 40) / Math.max(nutCount - 1, 1)) + (i*5%8) - 3;
-      const ny = y + 5;
-      ctx.fillStyle = 'rgba(0,0,0,0.2)';
-      ctx.beginPath(); ctx.ellipse(nx+1.5, ny+1.5, 5.5, 4, 0.3, 0, Math.PI*2); ctx.fill();
-      const ng = ctx.createRadialGradient(nx-1.5, ny-1, 0.5, nx, ny, 5.5);
-      ng.addColorStop(0, '#D0A050'); ng.addColorStop(0.5, '#966A18'); ng.addColorStop(1, '#5C3A0A');
-      ctx.fillStyle = ng; ctx.beginPath(); ctx.ellipse(nx, ny, 5.5, 4, 0.3, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = 'rgba(60,30,5,0.3)'; ctx.lineWidth = 0.7;
-      for (const ri of [-2, 0, 2]) {
-        ctx.beginPath(); ctx.moveTo(nx+ri, ny-3.5); ctx.quadraticCurveTo(nx+ri*1.2, ny, nx+ri, ny+3.5); ctx.stroke();
+    // Hazelnuts
+    const nutN = Math.max(2, Math.floor(w/38));
+    for (let i = 0; i < nutN; i++) {
+      const nx = x+18+i*((w-36)/Math.max(nutN-1,1))+(i*5%7)-3;
+      const ny = y+5;
+      ctx.fillStyle='rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse(nx+1.5,ny+1.5,6,4.2,0.25,0,Math.PI*2); ctx.fill();
+      const hg = ctx.createRadialGradient(nx-2,ny-2,0.5,nx,ny,6);
+      hg.addColorStop(0,'#D8A850'); hg.addColorStop(0.45,'#986A18'); hg.addColorStop(1,'#5A3808');
+      ctx.fillStyle=hg; ctx.beginPath(); ctx.ellipse(nx,ny,6,4.2,0.25,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(50,25,5,0.3)'; ctx.lineWidth=0.7;
+      for (const ri of [-2.2,0,2.2]) {
+        ctx.beginPath(); ctx.moveTo(nx+ri,ny-3.8); ctx.quadraticCurveTo(nx+ri*1.3,ny,nx+ri,ny+3.8); ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(240,200,100,0.55)';
-      ctx.beginPath(); ctx.ellipse(nx-1.5, ny-1, 2.5, 1.5, 0.3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(245,210,120,0.55)';
+      ctx.beginPath(); ctx.ellipse(nx-1.8,ny-1.5,2.5,1.6,0.3,0,Math.PI*2); ctx.fill();
     }
     // Knot hole
-    if (w > 90) {
-      const kx = x + w * 0.62, ky = y + h * 0.6;
-      ctx.fillStyle = 'rgba(60,30,5,0.28)'; ctx.beginPath(); ctx.ellipse(kx, ky, 4, 3, 0.2, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = 'rgba(60,30,5,0.4)'; ctx.lineWidth = 0.9;
-      ctx.beginPath(); ctx.ellipse(kx, ky, 7, 5, 0.2, 0, Math.PI*2); ctx.stroke();
+    if (w > 85) {
+      const kx=x+w*0.63, ky=y+h*0.6;
+      ctx.fillStyle='rgba(50,22,4,0.3)'; ctx.beginPath(); ctx.ellipse(kx,ky,4.5,3,0.2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(50,22,4,0.45)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.ellipse(kx,ky,7.5,5.2,0.2,0,Math.PI*2); ctx.stroke();
+      ctx.strokeStyle='rgba(255,220,130,0.15)'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.ellipse(kx,ky,9.5,6.5,0.2,0,Math.PI*2); ctx.stroke();
     }
     // Top shine
-    const shG = ctx.createLinearGradient(x, y, x, y+8);
-    shG.addColorStop(0, 'rgba(255,240,150,0.44)'); shG.addColorStop(1, 'rgba(255,240,150,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x+2, y, w-4, 8);
+    const sg = ctx.createLinearGradient(x, y, x, y+9);
+    sg.addColorStop(0,'rgba(255,245,160,0.48)'); sg.addColorStop(1,'rgba(255,245,160,0)');
+    ctx.fillStyle=sg; ctx.fillRect(x+2,y,w-4,9);
     // Bottom edge
-    const edgeG = ctx.createLinearGradient(x, y+h-7, x, y+h);
-    edgeG.addColorStop(0, '#5C3008'); edgeG.addColorStop(1, '#381C04');
-    ctx.fillStyle = edgeG; ctx.fillRect(x, y+h-7, w, 7);
-    ctx.strokeStyle = 'rgba(255,220,130,0.22)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x+5, y+1); ctx.lineTo(x+w-5, y+1); ctx.stroke();
+    const eg = ctx.createLinearGradient(x, y+h-8, x, y+h);
+    eg.addColorStop(0,'#5C2E08'); eg.addColorStop(1,'#361A04');
+    ctx.fillStyle=eg; ctx.fillRect(x,y+h-8,w,8);
 
+  // ════════════════════════ GROUND ════════════════════════
   } else if (type === 'ground') {
     const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, '#6B3810'); mg.addColorStop(0.45, '#4A2208'); mg.addColorStop(1, '#2A1004');
-    ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
-    // Strata bands
-    for (let i = 1; i <= 3; i++) {
-      ctx.strokeStyle = i % 2 === 0 ? 'rgba(255,180,80,0.07)' : 'rgba(0,0,0,0.18)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y+i*h/4); ctx.lineTo(x+w, y+i*h/4); ctx.stroke();
+    mg.addColorStop(0,'#703A12'); mg.addColorStop(0.4,'#4A2208'); mg.addColorStop(1,'#281204');
+    ctx.fillStyle=mg; ctx.fillRect(x,y,w,h);
+    // Strata
+    for (let i=1; i<=3; i++) {
+      ctx.strokeStyle = i%2===0 ? 'rgba(255,180,80,0.08)' : 'rgba(0,0,0,0.2)';
+      ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,y+i*h/4); ctx.lineTo(x+w,y+i*h/4); ctx.stroke();
     }
-    // Chip dots
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let i = 0; i < Math.floor(w/14); i++) {
-      ctx.beginPath(); ctx.arc(x+7+i*14+(i*7%9)-4, y+4+(i*5%(h-8)), 2+(i%2), 0, Math.PI*2); ctx.fill();
+    // Chip dots (2 layers)
+    ctx.fillStyle='rgba(0,0,0,0.25)';
+    for (let i=0; i<Math.floor(w/13); i++) {
+      ctx.beginPath(); ctx.arc(x+7+i*13+(i*7%9)-4,y+4+(i*5%(h-8)),2+(i%2),0,Math.PI*2); ctx.fill();
     }
-    ctx.fillStyle = 'rgba(200,140,60,0.08)';
-    for (let i = 0; i < Math.floor(w/20); i++) {
-      ctx.beginPath(); ctx.arc(x+10+i*20+(i*11%7)-3, y+7+(i*7%(h-12)), 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(200,140,60,0.1)';
+    for (let i=0; i<Math.floor(w/19); i++) {
+      ctx.beginPath(); ctx.arc(x+10+i*19+(i*11%7)-3,y+7+(i*7%(h-12)),1.5,0,Math.PI*2); ctx.fill();
     }
-    // Crack lines
-    if (w > 60) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x+w*0.15, y+2); ctx.lineTo(x+w*0.2, y+h*0.5); ctx.lineTo(x+w*0.18, y+h*0.75); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x+w*0.65, y+3); ctx.lineTo(x+w*0.68, y+h*0.4); ctx.stroke();
+    // Cracks
+    if (w>55) {
+      ctx.strokeStyle='rgba(15,6,2,0.35)'; ctx.lineWidth=1.1;
+      ctx.beginPath(); ctx.moveTo(x+w*0.16,y+2); ctx.lineTo(x+w*0.21,y+h*0.52); ctx.lineTo(x+w*0.19,y+h*0.76); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+w*0.64,y+3); ctx.lineTo(x+w*0.67,y+h*0.42); ctx.stroke();
     }
-    const shG = ctx.createLinearGradient(x, y, x, y+5);
-    shG.addColorStop(0, 'rgba(200,140,60,0.3)'); shG.addColorStop(1, 'rgba(200,140,60,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x+3, y, w-6, 5);
-    ctx.fillStyle = '#180A02'; ctx.fillRect(x, y+h-6, w, 6);
-    ctx.strokeStyle = 'rgba(200,140,60,0.15)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x+5, y+1); ctx.lineTo(x+w-5, y+1); ctx.stroke();
+    const sg = ctx.createLinearGradient(x,y,x,y+5);
+    sg.addColorStop(0,'rgba(200,140,60,0.3)'); sg.addColorStop(1,'rgba(200,140,60,0)');
+    ctx.fillStyle=sg; ctx.fillRect(x+3,y,w-6,5);
+    ctx.fillStyle='#160802'; ctx.fillRect(x,y+h-6,w,6);
 
+  // ════════════════════════ CANDY ════════════════════════
   } else if (type === 'candy') {
-    // Candy cane stripes
-    ctx.fillStyle = '#FFF0F0'; ctx.fillRect(x, y, w, h);
-    const stripeW = 10;
-    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-    for (let sx = x - h; sx < x + w + stripeW; sx += stripeW * 2) {
-      ctx.fillStyle = 'rgba(220,0,30,0.68)';
+    ctx.fillStyle='#FFF2F2'; ctx.fillRect(x,y,w,h);
+    // Diagonal stripes
+    const sW = 10;
+    for (let sx=x-h; sx<x+w+sW; sx+=sW*2) {
+      ctx.fillStyle='rgba(215,0,30,0.65)';
       ctx.beginPath();
-      ctx.moveTo(sx, y); ctx.lineTo(sx+stripeW, y);
-      ctx.lineTo(sx+stripeW+h, y+h); ctx.lineTo(sx+h, y+h);
+      ctx.moveTo(sx,y); ctx.lineTo(sx+sW,y); ctx.lineTo(sx+sW+h,y+h); ctx.lineTo(sx+h,y+h);
       ctx.closePath(); ctx.fill();
     }
-    ctx.restore();
     // Gloss top half
-    const shG = ctx.createLinearGradient(x, y, x, y+h*0.5);
-    shG.addColorStop(0, 'rgba(255,255,255,0.62)'); shG.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x, y, w, h*0.5);
+    const gg = ctx.createLinearGradient(x,y,x,y+h*0.55);
+    gg.addColorStop(0,'rgba(255,255,255,0.65)'); gg.addColorStop(0.5,'rgba(255,255,255,0.15)'); gg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=gg; ctx.fillRect(x,y,w,h*0.55);
     // Gem sparkles
-    const gems = ['#FF6090','#60C8FF','#FFE040','#C060FF'];
-    for (let i = 0; i < Math.floor(w/28); i++) {
-      const gx2 = x+14+i*28, gy2 = y+h*0.3;
-      ctx.fillStyle = gems[i%4];
-      ctx.save(); ctx.translate(gx2, gy2); ctx.rotate(Math.PI/4); ctx.fillRect(-3,-3,6,6); ctx.restore();
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.beginPath(); ctx.arc(gx2-1, gy2-1, 1.5, 0, Math.PI*2); ctx.fill();
+    const gems=['#FF6090','#60C8FF','#FFE040','#C060FF'];
+    for (let i=0; i<Math.floor(w/28); i++) {
+      const gx2=x+14+i*28, gy2=y+h*0.32;
+      ctx.fillStyle=gems[i%4];
+      ctx.save(); ctx.translate(gx2,gy2); ctx.rotate(Math.PI/4); ctx.fillRect(-3,-3,6,6); ctx.restore();
+      ctx.fillStyle='rgba(255,255,255,0.88)';
+      ctx.beginPath(); ctx.arc(gx2-1,gy2-1,1.6,0,Math.PI*2); ctx.fill();
     }
     // Cross sparkles
-    ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.2;
-    for (let i = 0; i < Math.floor(w/50); i++) {
-      const sx2 = x+25+i*50, sy2 = y+h*0.18;
+    ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1.2;
+    for (let i=0; i<Math.floor(w/50); i++) {
+      const sx2=x+25+i*50, sy2=y+h*0.2;
       ctx.beginPath(); ctx.moveTo(sx2-5,sy2); ctx.lineTo(sx2+5,sy2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(sx2,sy2-5); ctx.lineTo(sx2,sy2+5); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(180,0,20,0.38)'; ctx.fillRect(x, y+h-5, w, 5);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x+5, y+1); ctx.lineTo(x+w-5, y+1); ctx.stroke();
+    ctx.fillStyle='rgba(170,0,20,0.4)'; ctx.fillRect(x,y+h-5,w,5);
 
+  // ════════════════════════ SPRING ════════════════════════
   } else if (type === 'spring') {
-    const mg = ctx.createLinearGradient(x, y, x, y+h);
-    mg.addColorStop(0, '#4A8040'); mg.addColorStop(0.5, '#2A5A28'); mg.addColorStop(1, '#1A3C18');
-    ctx.fillStyle = mg; ctx.fillRect(x, y, w, h);
-    const coilH = 5;
-    for (let i = 0; i < Math.floor(h / coilH); i++) {
-      if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        ctx.fillRect(x+2, y+i*coilH, w-4, coilH);
-      }
+    const mg = ctx.createLinearGradient(x,y,x,y+h);
+    mg.addColorStop(0,'#5A9448'); mg.addColorStop(0.5,'#306828'); mg.addColorStop(1,'#1A3C18');
+    ctx.fillStyle=mg; ctx.fillRect(x,y,w,h);
+    // Coil bands
+    const cH2=5;
+    for (let i=0; i<Math.floor(h/cH2); i++) {
+      if (i%2===0) { ctx.fillStyle='rgba(255,255,255,0.14)'; ctx.fillRect(x+2,y+i*cH2,w-4,cH2); }
+      else          { ctx.fillStyle='rgba(0,0,0,0.1)';        ctx.fillRect(x+2,y+i*cH2,w-4,cH2); }
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.beginPath(); ctx.moveTo(x+w/2, y+h/2-6); ctx.lineTo(x+w/2+7, y+h/2+3); ctx.lineTo(x+w/2-7, y+h/2+3); ctx.closePath(); ctx.fill();
-    const shG = ctx.createLinearGradient(x, y, x, y+6);
-    shG.addColorStop(0, 'rgba(180,255,120,0.5)'); shG.addColorStop(1, 'rgba(180,255,120,0)');
-    ctx.fillStyle = shG; ctx.fillRect(x+2, y, w-4, 6);
-    ctx.fillStyle = '#102010'; ctx.fillRect(x, y+h-5, w, 5);
+    // Arrow
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    const ax=x+w/2, ay=y+h/2;
+    ctx.beginPath(); ctx.moveTo(ax,ay-7); ctx.lineTo(ax+8,ay+3); ctx.lineTo(ax-8,ay+3); ctx.closePath(); ctx.fill();
+    const sg=ctx.createLinearGradient(x,y,x,y+7);
+    sg.addColorStop(0,'rgba(180,255,120,0.55)'); sg.addColorStop(1,'rgba(180,255,120,0)');
+    ctx.fillStyle=sg; ctx.fillRect(x+2,y,w-4,7);
+    ctx.fillStyle='#0E1E0C'; ctx.fillRect(x,y+h-5,w,5);
   }
 
+  ctx.restore(); // ── release clip ──
+
+  // ── Smooth rounded border on top of everything ──
+  ctx.save();
+  _clipRR(x, y, w, h, R);
+  const borderCol = type==='chocolate' ? 'rgba(20,8,2,0.55)'
+                  : type==='cream'     ? 'rgba(180,130,50,0.4)'
+                  : type==='nougat'    ? 'rgba(70,35,5,0.45)'
+                  : type==='ground'    ? 'rgba(10,4,1,0.6)'
+                  : type==='candy'     ? 'rgba(160,0,20,0.45)'
+                  :                     'rgba(10,25,8,0.5)';
+  ctx.strokeStyle = borderCol; ctx.lineWidth = 1.5; ctx.stroke();
+  // Top edge shine
+  const topShine = type==='cream' ? 'rgba(255,255,255,0.6)'
+                 : type==='candy' ? 'rgba(255,255,255,0.55)'
+                 : type==='nougat'? 'rgba(255,230,100,0.3)'
+                 : 'rgba(255,200,120,0.22)';
+  ctx.strokeStyle = topShine; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x+R+3, y+1); ctx.lineTo(x+w-R-3, y+1); ctx.stroke();
   ctx.restore();
 }
 
@@ -1972,61 +2019,123 @@ function drawEndZone() {
 // ============================================================
 // HUD
 // ============================================================
+function _heart(cx, cy, s, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, cy);
+  const g = ctx.createRadialGradient(-s*0.22, -s*0.35, 0, 0, 0, s*1.1);
+  g.addColorStop(0, '#FF7090'); g.addColorStop(0.45, '#E8001C'); g.addColorStop(1, '#880010');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, s*0.38);
+  ctx.bezierCurveTo(-s*1.05,-s*0.08,-s*1.05,-s*0.82,-s*0.52,-s*0.82);
+  ctx.bezierCurveTo(-s*0.22,-s*0.82,0,-s*0.58,0,-s*0.48);
+  ctx.bezierCurveTo(0,-s*0.58,s*0.22,-s*0.82,s*0.52,-s*0.82);
+  ctx.bezierCurveTo(s*1.05,-s*0.82,s*1.05,-s*0.08,0,s*0.38);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.38)';
+  ctx.beginPath(); ctx.ellipse(-s*0.26,-s*0.52,s*0.24,s*0.14,-0.4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
 function drawHUD() {
-  const col = levelData.collectibles.filter((_,i) => lCollectibles[i]?.collected).length;
+  if (!levelData || !player) return;
+  const col = lCollectibles.filter(c => c.collected).length;
   const tot = lCollectibles.length;
 
-  // Panel
-  rRect(8,8,285,68,10,'rgba(60,20,0,0.8)',null);
-
-  // Mini Schoko-Bon icon (oval candy with red twists)
-  ctx.save(); ctx.translate(30, 25); ctx.scale(0.72, 0.72);
-  _drawHorizTwist(-16, 0, 9, 11, true);
-  _drawHorizTwist(16, 0, 9, 11, false);
+  // ── Left panel: collectibles + score ──
   ctx.save();
-  ctx.beginPath(); ctx.ellipse(0,0,16,11,0,0,Math.PI*2); ctx.clip();
-  const hig=ctx.createLinearGradient(-16,-11,5,11);
-  hig.addColorStop(0,'#FFFFFF'); hig.addColorStop(0.5,'#F5EFE5'); hig.addColorStop(1,'#D0C0A0');
-  ctx.fillStyle=hig; ctx.fillRect(-16,-11,32,22);
-  ctx.fillStyle='#6B3200'; ctx.fillRect(-16,2,32,12);
-  ctx.fillStyle='#0099DD'; ctx.fillRect(-16,-11,32,8);
-  ctx.fillStyle='#FFF'; ctx.font='bold 4px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('kinder',0,-7); ctx.restore();
-  ctx.strokeStyle='#C8A060'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.ellipse(0,0,16,11,0,0,Math.PI*2); ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,0.5)';
-  ctx.beginPath(); ctx.ellipse(-5,-4,5,3,0,0,Math.PI*2); ctx.fill();
+  const panW = 218, panH = 58, panX = 10, panY = 10;
+  const pg = ctx.createLinearGradient(panX, panY, panX, panY+panH);
+  pg.addColorStop(0,'rgba(65,20,0,0.90)'); pg.addColorStop(1,'rgba(38,10,0,0.75)');
+  _clipRR(panX,panY,panW,panH,10); ctx.fillStyle=pg; ctx.fill();
+  ctx.strokeStyle='rgba(200,140,40,0.52)'; ctx.lineWidth=1.2;
+  _clipRR(panX,panY,panW,panH,10); ctx.stroke();
   ctx.restore();
 
-  ctx.fillStyle='#FFF8DC'; ctx.font='bold 15px Arial';
-  ctx.fillText(`${col} / ${tot} Schoko Bons`, 48,29);
-  ctx.fillStyle='#FFD700'; ctx.font='13px Arial';
-  ctx.fillText(`Score: ${score}`, 48,48);
+  // Mini candy icon
+  ctx.save(); ctx.translate(panX+26,panY+17); ctx.scale(0.66,0.66);
+  _drawHorizTwist(-15,0,8,10,true); _drawHorizTwist(15,0,8,10,false);
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(0,0,15,10,0,0,Math.PI*2); ctx.clip();
+  const hig=ctx.createLinearGradient(-15,-10,5,10);
+  hig.addColorStop(0,'#FFF'); hig.addColorStop(0.5,'#F4EEE4'); hig.addColorStop(1,'#D0C0A0');
+  ctx.fillStyle=hig; ctx.fillRect(-15,-10,30,20);
+  ctx.fillStyle='#6B3200'; ctx.fillRect(-15,2,30,12);
+  ctx.fillStyle='#0099DD'; ctx.fillRect(-15,-10,30,8);
+  ctx.fillStyle='#FFF'; ctx.font='bold 4px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('kinder',0,-6); ctx.restore();
+  ctx.strokeStyle='#C8A060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.ellipse(0,0,15,10,0,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.beginPath(); ctx.ellipse(-5,-3.5,5,3,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
 
-  // Lives (hearts)
-  ctx.font='14px Arial';
-  const heartX = 160;
-  for (let i=0;i<3;i++) {
-    ctx.fillStyle = i < lives ? '#E8001C' : '#555';
-    ctx.fillText('♥', heartX + i*22, 29);
-  }
+  ctx.fillStyle='#FFF8DC'; ctx.font='bold 14px Arial';
+  ctx.fillText(`${col} / ${tot}`, panX+46, panY+21);
+  ctx.fillStyle='rgba(255,225,140,0.58)'; ctx.font='10px Arial';
+  ctx.fillText('Schoko Bons collectés', panX+46, panY+34);
+  ctx.fillStyle='#FFD700'; ctx.font='bold 13px Arial';
+  ctx.fillText(`Score: ${score}`, panX+46, panY+51);
 
   // Level name
-  ctx.fillStyle='rgba(255,250,205,0.7)'; ctx.font='11px Arial';
-  ctx.fillText(`Niveau ${currentLevel+1}: ${levelData.name}`, 12,68);
+  ctx.fillStyle='rgba(255,235,170,0.5)'; ctx.font='10px Arial';
+  ctx.fillText(`Niveau ${currentLevel+1}: ${levelData.name}`, panX+4, panY+panH+13);
 
-  // Power-up bars (right side)
+  // ── HP hearts (centre-top) ──
+  const hpX = W/2 - 46, hpY = 22;
+  for (let i = 0; i < 3; i++) {
+    const filled = i < player.hp;
+    if (!filled) {
+      ctx.save(); ctx.globalAlpha=0.28; ctx.translate(hpX+i*36, hpY);
+      ctx.strokeStyle='#880010'; ctx.lineWidth=1.5;
+      const s=11;
+      ctx.beginPath();
+      ctx.moveTo(0,s*0.38);
+      ctx.bezierCurveTo(-s*1.05,-s*0.08,-s*1.05,-s*0.82,-s*0.52,-s*0.82);
+      ctx.bezierCurveTo(-s*0.22,-s*0.82,0,-s*0.58,0,-s*0.48);
+      ctx.bezierCurveTo(0,-s*0.58,s*0.22,-s*0.82,s*0.52,-s*0.82);
+      ctx.bezierCurveTo(s*1.05,-s*0.82,s*1.05,-s*0.08,0,s*0.38);
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    } else {
+      const blink = player.iframes>0 && Math.floor(frameCount/5)%2===0;
+      _heart(hpX+i*36, hpY, 11, blink ? 0.35 : 1.0);
+    }
+  }
+  ctx.fillStyle='rgba(255,190,190,0.55)'; ctx.font='9px Arial'; ctx.textAlign='center';
+  ctx.fillText('HP', hpX+36, hpY+20); ctx.textAlign='left';
+
+  // ── Lives counter panel ──
+  const lvX = W/2+58, lvY = 8;
+  ctx.save();
+  const lvg=ctx.createLinearGradient(lvX,lvY,lvX,lvY+36);
+  lvg.addColorStop(0,'rgba(90,0,12,0.88)'); lvg.addColorStop(1,'rgba(55,0,8,0.72)');
+  _clipRR(lvX,lvY,62,36,9); ctx.fillStyle=lvg; ctx.fill();
+  ctx.strokeStyle='rgba(230,50,50,0.5)'; ctx.lineWidth=1.2;
+  _clipRR(lvX,lvY,62,36,9); ctx.stroke();
+  ctx.restore();
+  _heart(lvX+14, lvY+18, 9, 1.0);
+  ctx.fillStyle='#FFE0E0'; ctx.font='bold 17px Arial';
+  ctx.fillText(`×${lives}`, lvX+26, lvY+24);
+
+  // ── Power-up bars (right) ──
   let px = W - 12;
   const drawPBar = (type) => {
     if (!player || player.pu[type] <= 0) return;
     const pct = player.pu[type] / PU[type].dur;
-    px -= 58;
-    rRect(px,8,52,42,5,'rgba(0,0,0,0.55)',null);
-    ctx.fillStyle = PU[type].col;
-    const bh = pct * 36;
-    ctx.fillRect(px+3, 8+42-3-bh, 46, bh);
-    ctx.font='18px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(PU[type].icon, px+26, 29);
+    px -= 52;
+    ctx.save();
+    const bg2=ctx.createLinearGradient(px,8,px,50);
+    bg2.addColorStop(0,'rgba(0,0,0,0.7)'); bg2.addColorStop(1,'rgba(0,0,0,0.48)');
+    _clipRR(px,8,48,42,7); ctx.fillStyle=bg2; ctx.fill();
+    const bh2 = pct * 36;
+    ctx.fillStyle = PU[type].col + 'CC';
+    ctx.fillRect(px+3, 8+42-3-bh2, 42, bh2);
+    ctx.fillStyle = PU[type].col + '44';
+    ctx.fillRect(px+3, 8+42-3-bh2, 42, Math.min(3,bh2));
+    ctx.strokeStyle=PU[type].col+'99'; ctx.lineWidth=1;
+    _clipRR(px,8,48,42,7); ctx.stroke();
+    ctx.restore();
+    ctx.font='17px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(PU[type].icon, px+24, 29);
     ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   };
   drawPBar('speed'); drawPBar('doubleJump'); drawPBar('dash'); drawPBar('shield'); drawPBar('ultra');
@@ -2128,148 +2237,272 @@ function drawQuiz() {
 // MENU
 // ============================================================
 function _drawMenuCandy(cx, cy, scale) {
-  // Draw a large Schoko-Bon candy (horizontal oval, red twists) for the menu
   ctx.save();
   ctx.translate(cx, cy); ctx.scale(scale, scale);
+  const bw=72, bh=50;
 
-  const bw = 68, bh = 48;
+  // Ambient glow ring
+  const glow=ctx.createRadialGradient(0,0,8,0,0,bw+28);
+  glow.addColorStop(0,'rgba(255,200,60,0.32)'); glow.addColorStop(0.55,'rgba(200,120,10,0.14)');
+  glow.addColorStop(1,'rgba(200,120,10,0)');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.ellipse(0,0,bw+28,bh+28,0,0,Math.PI*2); ctx.fill();
 
-  // Outer glow
-  const glow = ctx.createRadialGradient(0,0,10,0,0,bw+18);
-  glow.addColorStop(0,'rgba(200,130,10,0.4)'); glow.addColorStop(1,'rgba(200,130,10,0)');
-  ctx.fillStyle=glow; ctx.beginPath(); ctx.ellipse(0,0,bw+18,bh+18,0,0,Math.PI*2); ctx.fill();
+  // Drop shadow
+  const dsG=ctx.createRadialGradient(5,8,0,5,8,bw+10);
+  dsG.addColorStop(0,'rgba(0,0,0,0.38)'); dsG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=dsG; ctx.beginPath(); ctx.ellipse(5,8,bw+4,bh+4,0,0,Math.PI*2); ctx.fill();
 
-  // Shadow
-  ctx.fillStyle='rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.ellipse(4,5,bw,bh,0,0,Math.PI*2); ctx.fill();
+  // Twists
+  _drawHorizTwist(-bw, 0, 38, 46, true);
+  _drawHorizTwist( bw, 0, 38, 46, false);
 
-  // Left twist
-  _drawHorizTwist(-bw, 0, 38, 44, true);
-  // Right twist
-  _drawHorizTwist(bw, 0, 38, 44, false);
-
-  // Body clip
+  // Body
   ctx.save();
   ctx.beginPath(); ctx.ellipse(0,0,bw,bh,0,0,Math.PI*2); ctx.clip();
 
-  const bg = ctx.createLinearGradient(-bw,-bh, bw*0.3,bh);
-  bg.addColorStop(0,'#FFFFFF'); bg.addColorStop(0.4,'#F5EFE5');
-  bg.addColorStop(0.75,'#E8DEC8'); bg.addColorStop(1,'#D0C0A0');
+  const bg=ctx.createLinearGradient(-bw,-bh, bw*0.35,bh);
+  bg.addColorStop(0,'#FFFFFF'); bg.addColorStop(0.32,'#F7F1E4');
+  bg.addColorStop(0.68,'#EDE0C4'); bg.addColorStop(1,'#CFBA94');
   ctx.fillStyle=bg; ctx.fillRect(-bw,-bh,bw*2,bh*2);
 
-  // Chocolate bottom
-  ctx.fillStyle='#6B3200';
+  // Animated chocolate wave bottom
+  ctx.fillStyle='#5A2800';
   ctx.beginPath();
-  for (let i=0;i<=8;i++) {
-    const wx=-bw+bw*2*i/8, osc=Math.sin(i*1.3+frameCount*0.04)*3;
-    i===0?ctx.moveTo(wx,6+osc):ctx.lineTo(wx,6+osc);
+  ctx.moveTo(-bw, bh);
+  for (let i=0; i<=16; i++) {
+    const wx=-bw + bw*2*i/16;
+    const wy=8 + Math.sin(i*1.1+frameCount*0.045)*4 + Math.sin(i*2.3+frameCount*0.03)*1.5;
+    i===0 ? ctx.moveTo(wx,wy) : ctx.lineTo(wx,wy);
   }
   ctx.lineTo(bw,bh); ctx.lineTo(-bw,bh); ctx.closePath(); ctx.fill();
 
-  // Cream highlight blobs
-  ctx.fillStyle='rgba(255,250,240,0.6)';
-  ctx.beginPath(); ctx.ellipse(10,18,16,11,0.3,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-12,22,8,6,0.2,0,Math.PI*2); ctx.fill();
+  // Cream texture bands
+  ctx.fillStyle='rgba(255,248,235,0.22)';
+  ctx.beginPath(); ctx.ellipse(-14,-8,20,10,0.25,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(16,-12,12,7,0.1,0,Math.PI*2); ctx.fill();
 
   // Blue kinder stripe
-  ctx.fillStyle='#0099DD';
-  ctx.fillRect(-bw, -bh*0.72, bw*2, bh*0.54);
+  const stripeG=ctx.createLinearGradient(0,-bh*0.78,0,-bh*0.2);
+  stripeG.addColorStop(0,'#007FC0'); stripeG.addColorStop(0.5,'#0099DD'); stripeG.addColorStop(1,'#007FC0');
+  ctx.fillStyle=stripeG;
+  ctx.fillRect(-bw, -bh*0.76, bw*2, bh*0.54);
 
-  // "kinder" text
-  ctx.fillStyle='#FFFFFF'; ctx.font='bold 18px Arial';
+  // Stripe edge lines
+  ctx.strokeStyle='rgba(0,50,100,0.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-bw,-bh*0.76); ctx.lineTo(bw,-bh*0.76); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-bw,-bh*0.22); ctx.lineTo(bw,-bh*0.22); ctx.stroke();
+
+  // "kinder" text with white shadow
   ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.font='bold 19px Arial';
+  ctx.fillText('kinder', 1, -bh*0.46+1);
+  ctx.fillStyle='#FFFFFF'; ctx.font='bold 19px Arial';
   ctx.fillText('kinder', 0, -bh*0.46);
 
   // "Schoko-Bons" text
-  ctx.fillStyle='#003D6B'; ctx.font='bold 13px Arial';
+  ctx.fillStyle='rgba(0,40,80,0.5)'; ctx.font='bold 12px Arial';
+  ctx.fillText('Schoko-Bons', 1, 5);
+  ctx.fillStyle='#1A3D5C'; ctx.font='bold 12px Arial';
   ctx.fillText('Schoko-Bons', 0, 4);
 
-  ctx.restore(); // end clip
+  ctx.restore(); // end body clip
 
-  // Outline
-  ctx.strokeStyle='#C8A060'; ctx.lineWidth=2;
+  // Crisp outline
+  const outG=ctx.createLinearGradient(-bw,-bh,bw,bh);
+  outG.addColorStop(0,'#E8C870'); outG.addColorStop(0.5,'#FFE090'); outG.addColorStop(1,'#C8A050');
+  ctx.strokeStyle=outG; ctx.lineWidth=2.5;
   ctx.beginPath(); ctx.ellipse(0,0,bw,bh,0,0,Math.PI*2); ctx.stroke();
 
-  // Big specular highlight
-  const sh=ctx.createRadialGradient(-bw*0.3,-bh*0.35,0,-bw*0.1,-bh*0.2,bw*0.5);
-  sh.addColorStop(0,'rgba(255,255,255,0.65)'); sh.addColorStop(1,'rgba(255,255,255,0)');
+  // Primary specular
+  const sh=ctx.createRadialGradient(-bw*0.28,-bh*0.38,0,-bw*0.1,-bh*0.2,bw*0.52);
+  sh.addColorStop(0,'rgba(255,255,255,0.72)'); sh.addColorStop(0.4,'rgba(255,255,255,0.22)');
+  sh.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=sh;
-  ctx.beginPath(); ctx.ellipse(-bw*0.1,-bh*0.2,bw*0.45,bh*0.32,-0.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-bw*0.1,-bh*0.2,bw*0.46,bh*0.33,-0.2,0,Math.PI*2); ctx.fill();
+
+  // Secondary small highlight
+  ctx.fillStyle='rgba(255,255,255,0.38)';
+  ctx.beginPath(); ctx.ellipse(bw*0.25,bh*0.22,bw*0.12,bh*0.08,0.5,0,Math.PI*2); ctx.fill();
 
   ctx.restore();
 }
 
 function drawMenu() {
-  // Rich chocolate background
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#6B3010'); g.addColorStop(0.45,'#4A2008'); g.addColorStop(1,'#2A1004');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // 4-stop deep chocolate gradient background
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#7A3812'); bg.addColorStop(0.3,'#4E2008');
+  bg.addColorStop(0.7,'#331508'); bg.addColorStop(1,'#1C0A02');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
 
-  // Subtle grid texture
-  ctx.strokeStyle='rgba(255,180,80,0.04)'; ctx.lineWidth=1;
-  for (let i=0;i<W;i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
-  for (let i=0;i<H;i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+  // Warm radial glow top-right
+  const rg=ctx.createRadialGradient(W*0.75,H*0.08,0,W*0.75,H*0.08,W*0.65);
+  rg.addColorStop(0,'rgba(255,140,20,0.18)'); rg.addColorStop(0.5,'rgba(200,80,10,0.07)');
+  rg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
 
-  // Floating mini Schoko-Bons (background)
-  for (let i=0;i<12;i++) {
-    const bx=((i*148+frameCount*0.55)%(W+160));
-    const by=25+(i*97)%(H-50);
-    ctx.globalAlpha=0.07+0.06*Math.sin(frameCount*0.02+i);
-    ctx.save(); ctx.translate(bx,by); ctx.scale(0.7,0.7);
-    // mini oval
-    ctx.fillStyle='#7B3A0C';
-    ctx.beginPath(); ctx.ellipse(0,0,22,15,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.ellipse(-7,-5,8,5,0,0,Math.PI*2); ctx.fill();
+  // Diagonal grid lines
+  ctx.save(); ctx.strokeStyle='rgba(255,180,80,0.035)'; ctx.lineWidth=1;
+  for (let i=-H; i<W+H; i+=38) {
+    ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+H,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i,H); ctx.lineTo(i+H,0); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Floating mini candy particles (16)
+  for (let i=0; i<16; i++) {
+    const bx=((i*97+frameCount*(0.35+i*0.022))%(W+120))-60;
+    const by=30+(i*83)%(H-60);
+    const alpha=0.06+0.05*Math.sin(frameCount*0.018+i*0.8);
+    ctx.save(); ctx.globalAlpha=alpha; ctx.translate(bx,by);
+    const sc=0.55+0.18*(i%3)*0.5;
+    ctx.scale(sc,sc);
+    // mini oval body
+    const mg=ctx.createLinearGradient(-20,-14,20,14);
+    mg.addColorStop(0,'#C8A060'); mg.addColorStop(0.5,'#EED898'); mg.addColorStop(1,'#A07030');
+    ctx.fillStyle=mg; ctx.beginPath(); ctx.ellipse(0,0,20,14,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#0088CC';
+    ctx.fillRect(-20,-6,40,10);
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.ellipse(-6,-4,7,4,0,0,Math.PI*2); ctx.fill();
+    // twist stubs
+    ctx.fillStyle='#CC3300';
+    ctx.beginPath(); ctx.ellipse(-24,0,6,10,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(24,0,6,10,0,0,Math.PI*2); ctx.fill();
     ctx.restore(); ctx.globalAlpha=1;
   }
 
-  // Title with chocolate drip style
+  // Chocolate drips top border (11 drips, animated)
   ctx.save();
-  const ts=1+0.018*Math.sin(frameCount*0.05);
-  ctx.translate(W/2,98); ctx.scale(ts,ts);
-  // Shadow
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.font='bold 52px Arial'; ctx.textAlign='center';
-  ctx.fillText('SCHOKO BONS',3,3);
-  // Gold gradient
-  const tg=ctx.createLinearGradient(-220,-30,220,30);
-  tg.addColorStop(0,'#C8860A'); tg.addColorStop(0.25,'#FFE066');
-  tg.addColorStop(0.5,'#FFF8DC'); tg.addColorStop(0.75,'#FFE066'); tg.addColorStop(1,'#C8860A');
-  ctx.fillStyle=tg; ctx.fillText('SCHOKO BONS',0,0);
-  // Red subtitle
-  ctx.fillStyle='#E8001C'; ctx.font='bold 28px Arial';
-  ctx.fillText('ADVENTURE',0,40);
+  for (let i=0; i<11; i++) {
+    const dx=40+i*(W-80)/10;
+    const dh=22+Math.sin(frameCount*0.03+i*0.7)*6+i%3*8;
+    const dg=ctx.createLinearGradient(0,0,0,dh+12);
+    dg.addColorStop(0,'#7A3A08'); dg.addColorStop(0.6,'#5A2A04'); dg.addColorStop(1,'#3A1802');
+    ctx.fillStyle=dg;
+    ctx.beginPath();
+    ctx.moveTo(dx-9,0); ctx.lineTo(dx+9,0);
+    ctx.lineTo(dx+7,dh); ctx.bezierCurveTo(dx+7,dh+10,dx-7,dh+10,dx-7,dh);
+    ctx.closePath(); ctx.fill();
+    // drip tip highlight
+    ctx.fillStyle='rgba(255,200,100,0.22)';
+    ctx.beginPath(); ctx.ellipse(dx-2,dh+3,3,4,0,0,Math.PI*2); ctx.fill();
+  }
+  // Top drip bar
+  const dbar=ctx.createLinearGradient(0,0,0,14);
+  dbar.addColorStop(0,'#8B4510'); dbar.addColorStop(1,'#5A2A04');
+  ctx.fillStyle=dbar; ctx.fillRect(0,0,W,14);
   ctx.restore();
 
-  ctx.fillStyle='rgba(255,235,180,0.65)'; ctx.font='14px Arial'; ctx.textAlign='center';
-  ctx.fillText('Un univers gourmand et délicieux !', W/2, 170);
+  // Title block
+  ctx.save();
+  const ts=1+0.016*Math.sin(frameCount*0.05);
+  ctx.translate(W/2,102); ctx.scale(ts,ts);
 
-  // Large Schoko-Bon candy illustration
-  _drawMenuCandy(W/2, 285, 1 + 0.02*Math.sin(frameCount*0.06));
+  // Outer glow
+  ctx.shadowColor='rgba(255,160,20,0.55)'; ctx.shadowBlur=30;
+  ctx.fillStyle='rgba(255,160,20,0.0)'; ctx.font='bold 54px Arial'; ctx.textAlign='center';
+  ctx.fillText('SCHOKO-BONS',0,0);
+  ctx.shadowBlur=0;
+
+  // Drop shadow
+  ctx.fillStyle='rgba(0,0,0,0.60)'; ctx.font='bold 54px Arial';
+  ctx.fillText('SCHOKO-BONS',4,4);
+
+  // Gold gradient fill
+  const tg=ctx.createLinearGradient(-230,-32,230,32);
+  tg.addColorStop(0,'#B87208'); tg.addColorStop(0.2,'#FFE26A');
+  tg.addColorStop(0.5,'#FFFADC'); tg.addColorStop(0.8,'#FFE26A'); tg.addColorStop(1,'#B87208');
+  ctx.fillStyle=tg; ctx.fillText('SCHOKO-BONS',0,0);
+
+  // Subtitle
+  const sg=ctx.createLinearGradient(-80,30,80,52);
+  sg.addColorStop(0,'#FF4444'); sg.addColorStop(0.5,'#FF0022'); sg.addColorStop(1,'#CC0000');
+  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.font='bold 26px Arial'; ctx.fillText('ADVENTURE',2,44);
+  ctx.fillStyle=sg; ctx.fillText('ADVENTURE',0,42);
+
+  ctx.restore();
+
+  // Tagline
+  ctx.fillStyle='rgba(255,220,140,0.72)'; ctx.font='italic 14px Arial'; ctx.textAlign='center';
+  ctx.fillText('Un univers gourmand & délicieux !', W/2, 168);
+
+  // Large candy illustration
+  _drawMenuCandy(W/2, 282, 1 + 0.022*Math.sin(frameCount*0.055));
+
+  // Feature icon cards row
+  const icons=[
+    {icon:'🍫', label:'Collecte'},
+    {icon:'👾', label:'Combat'},
+    {icon:'❓', label:'Quiz'},
+    {icon:'⭐', label:'Powers'},
+  ];
+  const cardW=96, cardH=52, cardY=H-182, cardGap=14;
+  const rowX=W/2 - (icons.length*cardW + (icons.length-1)*cardGap)/2;
+  for (let i=0;i<icons.length;i++) {
+    const cx2=rowX+i*(cardW+cardGap), cy2=cardY;
+    ctx.save();
+    // glass card
+    _clipRR(cx2,cy2,cardW,cardH,10);
+    ctx.clip();
+    const cg=ctx.createLinearGradient(cx2,cy2,cx2,cy2+cardH);
+    cg.addColorStop(0,'rgba(255,200,100,0.16)'); cg.addColorStop(1,'rgba(80,30,5,0.55)');
+    ctx.fillStyle=cg; ctx.fillRect(cx2,cy2,cardW,cardH);
+    ctx.fillStyle='rgba(255,255,255,0.08)'; ctx.fillRect(cx2,cy2,cardW,cardH*0.45);
+    ctx.restore();
+    // border
+    ctx.strokeStyle='rgba(255,180,60,0.4)'; ctx.lineWidth=1.5;
+    _clipRR(cx2,cy2,cardW,cardH,10); ctx.stroke();
+    // icon + label
+    ctx.font='22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(icons[i].icon, cx2+cardW/2, cy2+18);
+    ctx.fillStyle='rgba(255,230,160,0.9)'; ctx.font='bold 10px Arial';
+    ctx.textBaseline='alphabetic';
+    ctx.fillText(icons[i].label, cx2+cardW/2, cy2+42);
+  }
+  ctx.textBaseline='alphabetic';
 
   // Play button
-  const pulse=1+0.05*Math.sin(frameCount*0.1);
-  ctx.save(); ctx.translate(W/2, H-130); ctx.scale(pulse,pulse);
-  // Button shadow
-  ctx.fillStyle='rgba(0,0,0,0.4)';
-  rRect(-122,-26,248,54,16,'rgba(0,0,0,0.4)',null);
-  // Button gradient
-  const btnG=ctx.createLinearGradient(-120,-24,120,24);
-  btnG.addColorStop(0,'#FF2222'); btnG.addColorStop(0.5,'#E8001C'); btnG.addColorStop(1,'#CC0000');
-  rRect(-120,-24,240,50,15,btnG,null);
-  rRect(-120,-24,240,22,15,'rgba(255,255,255,0.18)',null);
-  ctx.strokeStyle='#FFD700'; ctx.lineWidth=2;
-  rRect(-120,-24,240,50,15,null,'#FFD700',2);
-  ctx.fillStyle='#FFFFFF'; ctx.font='bold 22px Arial'; ctx.textAlign='center';
-  ctx.fillText('▶  JOUER',0,8);
+  const pulse=1+0.055*Math.sin(frameCount*0.09);
+  ctx.save(); ctx.translate(W/2, H-112); ctx.scale(pulse,pulse);
+
+  // Button outer shadow
+  ctx.save();
+  _clipRR(-126,-28,252,56,16); ctx.clip();
+  ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(-130,-32,260,64);
   ctx.restore();
 
-  ctx.fillStyle='rgba(222,184,135,0.8)'; ctx.font='14px Arial'; ctx.textAlign='center';
-  ctx.fillText('Appuie sur ENTRÉE ou ESPACE pour commencer', W/2, H-82);
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='12px Arial';
-  ctx.fillText('Flèches / WASD = Déplacer  |  Espace / ↑ = Sauter  |  Double saut !', W/2, H-58);
-  ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.font='11px Arial';
-  ctx.fillText('Collecte des Schoko Bons · Évite les ennemis · Quiz à chaque fin de niveau', W/2, H-38);
+  // Button glass body
+  ctx.save();
+  _clipRR(-122,-26,244,52,14); ctx.clip();
+  const btnG=ctx.createLinearGradient(-120,-26,120,26);
+  btnG.addColorStop(0,'#FF3333'); btnG.addColorStop(0.45,'#E8001C');
+  btnG.addColorStop(0.55,'#CC0016'); btnG.addColorStop(1,'#990010');
+  ctx.fillStyle=btnG; ctx.fillRect(-122,-26,244,52);
+  // top shine
+  ctx.fillStyle='rgba(255,255,255,0.20)'; ctx.fillRect(-122,-26,244,26);
+  // inner rim
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  _clipRR(-118,-22,236,44,12); ctx.stroke();
+  ctx.restore();
+
+  // Gold border
+  ctx.strokeStyle='#FFD700'; ctx.lineWidth=2.5;
+  _clipRR(-122,-26,244,52,14); ctx.stroke();
+
+  ctx.fillStyle='#FFFFFF'; ctx.font='bold 24px Arial'; ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=6;
+  ctx.fillText('▶  JOUER', 0, 0);
+  ctx.shadowBlur=0; ctx.textBaseline='alphabetic';
+  ctx.restore();
+
+  // Controls hints
+  ctx.fillStyle='rgba(222,184,135,0.82)'; ctx.font='13px Arial'; ctx.textAlign='center';
+  ctx.fillText('Appuie sur ENTRÉE ou ESPACE pour commencer', W/2, H-70);
+  ctx.fillStyle='rgba(255,255,255,0.42)'; ctx.font='12px Arial';
+  ctx.fillText('Flèches / WASD = Déplacer  ·  Espace / ↑ = Sauter  ·  SHIFT = Dash', W/2, H-50);
+  ctx.fillStyle='rgba(255,255,255,0.26)'; ctx.font='11px Arial';
+  ctx.fillText('Collecte les Schoko-Bons · Évite les ennemis · Quiz à chaque niveau', W/2, H-32);
   ctx.textAlign='left';
 
   if (just('Enter')||just('Space')) {
