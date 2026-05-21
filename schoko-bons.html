@@ -73,19 +73,36 @@ html, body {
   }
 }
   </style>
+  <!-- Catch uncaught errors and show them on screen so we can debug on mobile -->
+  <script>
+  window.onerror = function(msg, src, line, col, err) {
+    var d = document.getElementById('errbanner');
+    if (d) { d.style.display='block'; d.textContent = (err ? err.stack : msg) || msg; }
+    return false;
+  };
+  </script>
 </head>
 <body>
-  <!-- Portrait-mode hint shown by CSS media query -->
+  <!-- Red error banner: invisible until an exception occurs -->
+  <div id="errbanner" style="display:none;position:fixed;top:0;left:0;width:100%;background:#c00;color:#fff;font:11px monospace;padding:6px 8px;z-index:9999;white-space:pre-wrap;word-break:break-all;max-height:40%;overflow:auto;"></div>
+
+  <!-- Portrait hint shown via CSS media query -->
   <div id="rotate">
     <span>&#8635;</span>
     <p>Tourne ton téléphone en mode paysage</p>
   </div>
-  <!-- Flexbox wrapper — replaces position+transform centering (causes GPU blank on iOS) -->
+
+  <!-- Flex wrapper: most reliable centering on iOS (no transform, no position tricks on canvas) -->
   <div id="wrap">
     <canvas id="gameCanvas" width="960" height="540"></canvas>
   </div>
+
   <script>
+// Wait for full page load so iOS viewport dimensions are stable
+window.addEventListener('load', function() {
 'use strict';
+try {
+
 
 // ============================================================
 // CANVAS — PLEIN ÉCRAN DYNAMIQUE
@@ -2865,6 +2882,13 @@ function loop() {
 // BOOT
 // ============================================================
 loop();
+
+
+} catch(e) {
+  var d = document.getElementById('errbanner');
+  if (d) { d.style.display='block'; d.textContent = 'INIT ERROR: ' + (e.stack || e.message || e); }
+}
+}); // end load
   </script>
 </body>
 </html>
