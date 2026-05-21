@@ -33,20 +33,16 @@ html, body {
 }
   </style>
   <script>
-  window.onerror = function(m, s, l, c, e) {
-    var d = document.getElementById("err");
-    if (d) { d.style.display = "block"; d.textContent = (e && e.stack) ? e.stack : m; }
-  };
+  window.onerror=function(m,s,l,c,e){var d=document.getElementById("err");if(d){d.style.display="block";d.textContent=(e&&e.stack)?e.stack:m;}};
   </script>
 </head>
 <body>
   <div id="err" style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font:12px monospace;padding:8px;z-index:9999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;"></div>
   <canvas id="gameCanvas" width="960" height="540"></canvas>
   <script>
-window.addEventListener("load", function() {
+window.addEventListener("load",function(){
 "use strict";
-try {
-
+try{
 
 // ============================================================
 // CANVAS — PLEIN ÉCRAN DYNAMIQUE
@@ -2955,11 +2951,7 @@ function loop() {
 // ============================================================
 loop();
 
-
-} catch(e) {
-  var d = document.getElementById("err");
-  if (d) { d.style.display = "block"; d.textContent = "LOAD ERR: " + (e.stack || e.message || String(e)); }
-}
+}catch(e){var d=document.getElementById("err");if(d){d.style.display="block";d.textContent="ERR: "+(e.stack||e.message||String(e));}}
 });
   </script>
 </body>
