@@ -2,33 +2,32 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    html,body{margin:0;background:#120800;width:100%;height:100%;overflow:hidden;}
-    canvas{position:fixed;top:0;left:0;right:0;bottom:0;margin:auto;display:block;}
+    body { margin:0; background:red; color:white; font:22px Arial; padding:20px; }
+    canvas { display:block; border:4px solid yellow; margin-top:12px; }
   </style>
 </head>
 <body>
-  <canvas id="c" width="960" height="540"></canvas>
+  <p id="t1" style="background:#006;padding:8px;">1. HTML charge</p>
+  <p id="t2" style="background:#060;padding:8px;">2. JS pas encore lancé</p>
+  <canvas id="c" width="400" height="120"></canvas>
+
   <script>
-    window.addEventListener('load', function() {
-      var c = document.getElementById('c');
-      var ctx = c.getContext('2d');
-      var w = window.innerWidth || 320;
-      var h = window.innerHeight || 480;
-      var s = Math.min(w/960, h/540);
-      c.style.width  = Math.floor(960*s)+'px';
-      c.style.height = Math.floor(540*s)+'px';
-      ctx.fillStyle = '#3A1A00';
-      ctx.fillRect(0,0,960,540);
-      ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 60px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('iOS OK !', 480, 240);
-      ctx.fillStyle = '#FF4444';
-      ctx.font = '30px Arial';
-      ctx.fillText('w='+w+' h='+h+' s='+s.toFixed(2), 480, 310);
-    });
+    // PAS de window.load — script en bas de body, après le canvas
+    document.getElementById('t2').textContent =
+      '2. JS OK — ' + window.innerWidth + 'x' + window.innerHeight;
+    try {
+      var ctx = document.getElementById('c').getContext('2d');
+      if (!ctx) throw new Error('getContext retourne null');
+      ctx.fillStyle = '#0044cc';
+      ctx.fillRect(0, 0, 400, 120);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 28px Arial';
+      ctx.fillText('3. CANVAS OK', 60, 70);
+    } catch(e) {
+      document.getElementById('t2').textContent += ' | ERREUR: ' + e.message;
+    }
   </script>
 </body>
 </html>
