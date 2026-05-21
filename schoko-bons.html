@@ -1736,314 +1736,237 @@ class Platform {
 // LEVEL DATA
 // ============================================================
 const LEVELS = [
+  // ── NIVEAU 0 : La Chocolaterie (tutoriel, facile) ────────────────
   {
     name: 'La Chocolaterie',
-    width: 3200,
-    height: 600,
+    width: 2800, height: 600,
     bgTop: '#FFE4B5', bgBot: '#DEB887',
-    spawn: { x: 80, y: 380 },
-    end: { x: 3100, y: 380, w: 56, h: 70 },
+    spawn: { x: 80, y: 360 },
     platforms: [
-      // Ground segments
-      { x:0,    y:440, w:480, h:20, type:'ground' },
-      { x:530,  y:440, w:300, h:20, type:'ground' },
-      { x:880,  y:440, w:380, h:20, type:'ground' },
-      { x:1310, y:440, w:340, h:20, type:'ground' },
-      { x:1700, y:440, w:400, h:20, type:'ground' },
-      { x:2150, y:440, w:320, h:20, type:'ground' },
-      { x:2530, y:440, w:680, h:20, type:'ground' },
-      // Mid platforms
-      { x:220,  y:360, w:130, h:18, type:'chocolate' },
-      { x:400,  y:295, w:110, h:18, type:'cream'     },
-      { x:560,  y:360, w:130, h:18, type:'cream'     },
-      { x:740,  y:290, w:120, h:18, type:'nougat'    },
-      { x:910,  y:360, w:140, h:18, type:'nougat'    },
-      { x:1100, y:295, w:130, h:18, type:'chocolate' },
-      { x:1280, y:355, w:120, h:18, type:'chocolate' },
-      { x:1410, y:278, w:140, h:18, type:'cream'     },
-      { x:1600, y:320, w:120, h:18, type:'nougat'    },
-      { x:1770, y:370, w:150, h:18, type:'chocolate' },
-      { x:1970, y:305, w:130, h:18, type:'cream'     },
-      { x:2130, y:375, w:130, h:18, type:'nougat'    },
-      { x:2290, y:295, w:150, h:18, type:'chocolate' },
-      { x:2470, y:355, w:120, h:18, type:'cream'     },
-      { x:2640, y:268, w:130, h:18, type:'chocolate' },
-      { x:2820, y:315, w:140, h:18, type:'nougat'    },
-      { x:3000, y:360, w:150, h:18, type:'chocolate' },
-      // High platforms (optional bonus)
-      { x:380,  y:220, w:100, h:16, type:'cream'     },
-      { x:730,  y:215, w:110, h:16, type:'chocolate' },
-      { x:1400, y:200, w:120, h:16, type:'cream'     },
-      { x:2290, y:210, w:130, h:16, type:'nougat'    },
-      { x:2810, y:235, w:110, h:16, type:'chocolate' },
+      // Sol principal
+      { x:0,    y:460, w:600,  h:20, type:'ground'    },
+      { x:600,  y:460, w:400,  h:20, type:'chocolate' },
+      { x:1000, y:460, w:400,  h:20, type:'cream'     },
+      { x:1400, y:460, w:400,  h:20, type:'nougat'    },
+      { x:1800, y:460, w:500,  h:20, type:'ground'    },
+      { x:2300, y:460, w:500,  h:20, type:'chocolate' },
+      // Plateformes montantes progressives
+      { x:200,  y:380, w:120,  h:16, type:'chocolate' },
+      { x:400,  y:320, w:120,  h:16, type:'cream'     },
+      { x:560,  y:380, w:100,  h:16, type:'nougat'    },
+      { x:720,  y:300, w:140,  h:16, type:'chocolate' },
+      { x:900,  y:380, w:120,  h:16, type:'cream'     },
+      { x:1080, y:300, w:120,  h:16, type:'candy'     },
+      { x:1260, y:380, w:100,  h:16, type:'ground'    },
+      { x:1440, y:300, w:140,  h:16, type:'nougat'    },
+      { x:1640, y:360, w:120,  h:16, type:'chocolate' },
+      { x:1820, y:290, w:140,  h:16, type:'cream'     },
+      { x:2020, y:360, w:100,  h:16, type:'candy'     },
+      { x:2180, y:290, w:140,  h:16, type:'nougat'    },
+      { x:2380, y:360, w:120,  h:16, type:'ground'    },
+      { x:2550, y:290, w:140,  h:16, type:'chocolate' },
+      { x:2720, y:350, w:80,   h:16, type:'cream'     },
+    ],
+    moving: [
+      { x:660, y:380, w:80, h:16, type:'candy', axis:'x', dist:80, speed:1.2 },
+      { x:1560, y:360, w:80, h:16, type:'nougat', axis:'y', dist:60, speed:0.8 },
+    ],
+    checkpoints: [
+      { x:900, y:340 },
+      { x:1800, y:340 },
     ],
     collectibles: [
-      // Ground-level paths
-      {x:120,y:415},{x:180,y:415},{x:250,y:415},{x:360,y:415},
-      // Platform trails
-      {x:225,y:335},{x:260,y:335},{x:295,y:335},
-      {x:405,y:265},{x:445,y:265},
-      {x:565,y:335},{x:605,y:335},{x:645,y:335},
-      {x:745,y:265},{x:785,y:265},
-      {x:915,y:335},{x:960,y:335},{x:1000,y:335},
-      {x:1105,y:268},{x:1145,y:268},
-      {x:1415,y:252},{x:1460,y:252},{x:1500,y:252},
-      {x:1605,y:295},{x:1645,y:295},
-      {x:1975,y:278},{x:2015,y:278},
-      {x:2295,y:268},{x:2345,y:268},{x:2390,y:268},
-      {x:2645,y:242},{x:2685,y:242},
-      // High platform
-      {x:390,y:195},{x:425,y:195},
-      {x:1405,y:175},{x:1450,y:175},
+      // Ligne de collectibles qui guide le joueur
+      ...[80,160,240,320,400,480,560,640,720,800,880,960,1040,1120,1200,1280,1360,1440,
+          1520,1600,1680,1760,1840,1920,2000,2080,2160,2240,2320,2400,2480,2560,2640,2720].map(
+        (x,i) => ({ x, y: 260 + (i%3)*40 })
+      ),
     ],
-    powerUps: [
-      { x:610,  y:328, type:'speed'      },
-      { x:1455, y:248, type:'doubleJump' },
-      { x:2000, y:278, type:'dash'       },
-      { x:2345, y:265, type:'shield'     },
-      { x:2830, y:205, type:'ultra'      },
+    powerups: [
+      { x:440,  y:280, w:32, h:32, type:'speed'      },
+      { x:1100, y:260, w:32, h:32, type:'doubleJump' },
+      { x:1860, y:250, w:32, h:32, type:'shield'     },
+      { x:2560, y:250, w:32, h:32, type:'speed'      },
     ],
     enemies: [
-      { type:'chocolate', x:600,  y:406, range:130 },
-      { type:'chocolate', x:1100, y:406, range:160 },
-      { type:'hazelnut',  x:1600, y:406 },
-      { type:'chocolate', x:2150, y:406, range:130 },
-      { type:'guard',     x:2750, y:396 },
+      { x:700,  y:440, type:'chocolate', range:140 },
+      { x:1100, y:440, type:'chocolate', range:100 },
+      { x:1500, y:440, type:'hazelnut'             },
+      { x:2100, y:440, type:'chocolate', range:120 },
     ],
+    endZone: { x:2720, y:370, w:56, h:80 },
   },
 
+  // ── NIVEAU 1 : Grotte de Noisettes (sauts & wall-jump) ──────────
   {
-    name: 'Montagnes de Noisettes',
-    width: 4800,
-    height: 650,
-    bgTop: '#E8C87A', bgBot: '#8B6914',
-    spawn: { x: 80, y: 400 },
-    end: { x: 4710, y: 360, w: 56, h: 70 },
+    name: 'Grotte de Noisettes',
+    width: 3800, height: 650,
+    bgTop: '#4A2800', bgBot: '#2A1000',
+    spawn: { x: 80, y: 450 },
     platforms: [
-      // Ground segments (many gaps)
-      { x:0,    y:450, w:400, h:20, type:'ground' },
-      { x:460,  y:450, w:280, h:20, type:'ground' },
-      { x:790,  y:450, w:310, h:20, type:'ground' },
-      { x:1160, y:450, w:300, h:20, type:'ground' },
-      { x:1520, y:450, w:290, h:20, type:'ground' },
-      { x:1870, y:450, w:380, h:20, type:'ground' },
-      { x:2310, y:450, w:340, h:20, type:'ground' },
-      { x:2710, y:450, w:310, h:20, type:'ground' },
-      { x:3080, y:450, w:380, h:20, type:'ground' },
-      { x:3520, y:450, w:330, h:20, type:'ground' },
-      { x:3910, y:450, w:900, h:20, type:'ground' },
-      // Mid platforms
-      { x:200,  y:370, w:130, h:18, type:'chocolate' },
-      { x:380,  y:300, w:110, h:18, type:'cream'     },
-      { x:510,  y:370, w:130, h:18, type:'nougat'    },
-      { x:700,  y:300, w:120, h:18, type:'chocolate' },
-      { x:850,  y:370, w:140, h:18, type:'cream'     },
-      { x:1020, y:295, w:130, h:18, type:'nougat'    },
-      { x:1210, y:370, w:120, h:18, type:'chocolate' },
-      { x:1360, y:285, w:140, h:18, type:'cream'     },
-      { x:1540, y:365, w:130, h:18, type:'chocolate' },
-      { x:1710, y:295, w:120, h:18, type:'nougat'    },
-      { x:1890, y:370, w:150, h:18, type:'chocolate' },
-      { x:2090, y:285, w:130, h:18, type:'cream'     },
-      { x:2260, y:365, w:140, h:18, type:'nougat'    },
-      { x:2440, y:275, w:120, h:18, type:'chocolate' },
-      { x:2600, y:360, w:130, h:18, type:'cream'     },
-      { x:2770, y:280, w:150, h:18, type:'nougat'    },
-      { x:2960, y:370, w:120, h:18, type:'chocolate' },
-      { x:3120, y:270, w:140, h:18, type:'cream'     },
-      { x:3310, y:365, w:130, h:18, type:'nougat'    },
-      { x:3490, y:275, w:150, h:18, type:'chocolate' },
-      { x:3680, y:365, w:130, h:18, type:'cream'     },
-      { x:3860, y:280, w:140, h:18, type:'nougat'    },
-      { x:4060, y:355, w:120, h:18, type:'chocolate' },
-      { x:4230, y:275, w:140, h:18, type:'cream'     },
-      { x:4420, y:360, w:130, h:18, type:'nougat'    },
-      { x:4600, y:285, w:170, h:18, type:'chocolate' },
-      // High platforms
-      { x:370,  y:220, w:110, h:16, type:'cream'     },
-      { x:710,  y:215, w:120, h:16, type:'chocolate' },
-      { x:1160, y:210, w:130, h:16, type:'nougat'    },
-      { x:1710, y:218, w:120, h:16, type:'chocolate' },
-      { x:2090, y:206, w:130, h:16, type:'cream'     },
-      { x:2770, y:200, w:130, h:16, type:'nougat'    },
-      { x:3490, y:198, w:140, h:16, type:'chocolate' },
-      { x:4230, y:200, w:130, h:16, type:'cream'     },
+      { x:0,    y:520, w:450,  h:20, type:'nougat'    },
+      { x:500,  y:520, w:300,  h:20, type:'ground'    },
+      { x:850,  y:520, w:300,  h:20, type:'chocolate' },
+      { x:1200, y:520, w:350,  h:20, type:'nougat'    },
+      { x:1600, y:520, w:300,  h:20, type:'cream'     },
+      { x:1950, y:520, w:350,  h:20, type:'nougat'    },
+      { x:2350, y:520, w:300,  h:20, type:'ground'    },
+      { x:2700, y:520, w:350,  h:20, type:'chocolate' },
+      { x:3100, y:520, w:300,  h:20, type:'nougat'    },
+      { x:3450, y:520, w:350,  h:20, type:'cream'     },
+      // Plateformes murales (pour wall-jump)
+      { x:460,  y:420, w:40,   h:100,type:'nougat'    },
+      { x:460,  y:300, w:40,   h:80, type:'nougat'    },
+      { x:800,  y:380, w:40,   h:90, type:'nougat'    },
+      { x:800,  y:260, w:40,   h:70, type:'nougat'    },
+      // Escalier ascendant
+      { x:220,  y:450, w:100,  h:16, type:'chocolate' },
+      { x:360,  y:380, w:100,  h:16, type:'cream'     },
+      { x:520,  y:310, w:100,  h:16, type:'nougat'    },
+      { x:660,  y:240, w:120,  h:16, type:'chocolate' },
+      { x:840,  y:310, w:100,  h:16, type:'cream'     },
+      { x:980,  y:380, w:120,  h:16, type:'nougat'    },
+      { x:1120, y:300, w:100,  h:16, type:'candy'     },
+      { x:1280, y:380, w:120,  h:16, type:'chocolate' },
+      { x:1440, y:300, w:100,  h:16, type:'cream'     },
+      { x:1600, y:400, w:100,  h:16, type:'nougat'    },
+      { x:1760, y:320, w:120,  h:16, type:'chocolate' },
+      { x:1940, y:400, w:100,  h:16, type:'candy'     },
+      { x:2100, y:320, w:120,  h:16, type:'cream'     },
+      { x:2280, y:400, w:100,  h:16, type:'nougat'    },
+      { x:2460, y:320, w:120,  h:16, type:'ground'    },
+      { x:2620, y:400, w:100,  h:16, type:'chocolate' },
+      { x:2780, y:310, w:120,  h:16, type:'cream'     },
+      { x:2940, y:390, w:100,  h:16, type:'nougat'    },
+      { x:3100, y:310, w:120,  h:16, type:'candy'     },
+      { x:3260, y:390, w:100,  h:16, type:'ground'    },
+      { x:3400, y:310, w:120,  h:16, type:'chocolate' },
+    ],
+    moving: [
+      { x:1340, y:440, w:90, h:16, type:'candy', axis:'x', dist:100, speed:1.5 },
+      { x:2040, y:360, w:90, h:16, type:'nougat', axis:'y', dist:80,  speed:1.0 },
+      { x:2660, y:380, w:90, h:16, type:'cream', axis:'x',  dist:120, speed:1.8 },
+      { x:3200, y:350, w:90, h:16, type:'candy',  axis:'y', dist:60,  speed:1.2 },
+    ],
+    checkpoints: [
+      { x:1100, y:480 },
+      { x:2300, y:480 },
+      { x:3200, y:480 },
     ],
     collectibles: [
-      {x:120,y:425},{x:200,y:425},{x:280,y:425},
-      {x:205,y:345},{x:245,y:345},{x:285,y:345},
-      {x:385,y:275},{x:425,y:275},{x:465,y:275},
-      {x:515,y:345},{x:555,y:345},{x:595,y:345},
-      {x:705,y:275},{x:745,y:275},
-      {x:855,y:345},{x:895,y:345},{x:935,y:345},
-      {x:1025,y:270},{x:1065,y:270},{x:1105,y:270},
-      {x:1215,y:345},{x:1255,y:345},
-      {x:1365,y:260},{x:1405,y:260},{x:1445,y:260},
-      {x:1545,y:340},{x:1585,y:340},
-      {x:1715,y:270},{x:1755,y:270},
-      {x:1895,y:345},{x:1935,y:345},{x:1975,y:345},
-      {x:2095,y:260},{x:2135,y:260},
-      {x:2445,y:250},{x:2485,y:250},{x:2520,y:250},
-      {x:2605,y:335},{x:2645,y:335},
-      {x:2775,y:255},{x:2815,y:255},
-      {x:3125,y:245},{x:3165,y:245},{x:3200,y:245},
-      {x:3495,y:250},{x:3535,y:250},
-      {x:4235,y:250},{x:4275,y:250},{x:4310,y:250},
-      {x:4605,y:260},{x:4645,y:260},
-      // High platform bonuses
-      {x:375,y:195},{x:415,y:195},
-      {x:1165,y:185},{x:1205,y:185},
-      {x:2775,y:175},{x:2815,y:175},
-      {x:4235,y:175},{x:4275,y:175},
+      ...[100,180,260,340,420,500,600,700,800,900,1000,1100,1200,1300,1400,
+          1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,
+          2800,2900,3000,3100,3200,3300,3400,3500,3600,3700].map(
+        (x,i) => ({ x, y: 220 + (i%4)*50 })
+      ),
     ],
-    powerUps: [
-      { x:515,  y:340, type:'speed'      },
-      { x:1365, y:255, type:'doubleJump' },
-      { x:2130, y:258, type:'dash'       },
-      { x:2445, y:245, type:'shield'     },
-      { x:3680, y:335, type:'speed'      },
-      { x:4200, y:330, type:'doubleJump' },
-      { x:4605, y:255, type:'ultra'      },
+    powerups: [
+      { x:560,  y:270, w:32, h:32, type:'doubleJump' },
+      { x:1140, y:260, w:32, h:32, type:'speed'      },
+      { x:1800, y:280, w:32, h:32, type:'dash'       },
+      { x:2480, y:280, w:32, h:32, type:'shield'     },
+      { x:3140, y:270, w:32, h:32, type:'ultra'      },
     ],
     enemies: [
-      { type:'chocolate', x:430,  y:415, range:120 },
-      { type:'hazelnut',  x:720,  y:415 },
-      { type:'chocolate', x:1070, y:415, range:150 },
-      { type:'guard',     x:1500, y:415 },
-      { type:'hazelnut',  x:1930, y:415 },
-      { type:'chocolate', x:2320, y:415, range:130 },
-      { type:'guard',     x:2780, y:415 },
-      { type:'hazelnut',  x:3200, y:415 },
-      { type:'chocolate', x:3650, y:415, range:140 },
-      { type:'guard',     x:4280, y:415 },
+      { x:600,  y:500, type:'chocolate', range:140 },
+      { x:900,  y:500, type:'hazelnut'             },
+      { x:1250, y:500, type:'chocolate', range:120 },
+      { x:1650, y:500, type:'guard',     range:200 },
+      { x:2000, y:500, type:'hazelnut'             },
+      { x:2400, y:500, type:'chocolate', range:160 },
+      { x:2750, y:500, type:'guard',     range:220 },
+      { x:3150, y:500, type:'hazelnut'             },
+      { x:3500, y:500, type:'guard',     range:200 },
     ],
+    endZone: { x:3700, y:420, w:56, h:80 },
   },
 
+  // ── NIVEAU 2 : Les Pics Sucrés (plateformes mobiles intenses) ───
   {
-    name: 'Château de Crème',
-    width: 5600,
-    height: 650,
-    bgTop: '#FFAACC', bgBot: '#CC4488',
-    spawn: { x: 80, y: 400 },
-    end: { x: 5510, y: 355, w: 56, h: 70 },
+    name: 'Les Pics Sucrés',
+    width: 4400, height: 650,
+    bgTop: '#001A3A', bgBot: '#003366',
+    spawn: { x: 80, y: 420 },
     platforms: [
-      // Ground segments
-      { x:0,    y:450, w:360, h:20, type:'ground' },
-      { x:420,  y:450, w:280, h:20, type:'ground' },
-      { x:760,  y:450, w:310, h:20, type:'ground' },
-      { x:1130, y:450, w:300, h:20, type:'ground' },
-      { x:1490, y:450, w:340, h:20, type:'ground' },
-      { x:1890, y:450, w:290, h:20, type:'ground' },
-      { x:2240, y:450, w:330, h:20, type:'ground' },
-      { x:2630, y:450, w:310, h:20, type:'ground' },
-      { x:2990, y:450, w:370, h:20, type:'ground' },
-      { x:3420, y:450, w:320, h:20, type:'ground' },
-      { x:3800, y:450, w:380, h:20, type:'ground' },
-      { x:4240, y:450, w:310, h:20, type:'ground' },
-      { x:4610, y:450, w:1000,h:20, type:'ground' },
-      // Dense platform grid
-      { x:180,  y:375, w:120, h:18, type:'cream'     },
-      { x:350,  y:300, w:110, h:18, type:'chocolate' },
-      { x:490,  y:370, w:130, h:18, type:'nougat'    },
-      { x:660,  y:295, w:120, h:18, type:'cream'     },
-      { x:820,  y:370, w:130, h:18, type:'chocolate' },
-      { x:1000, y:285, w:130, h:18, type:'nougat'    },
-      { x:1190, y:360, w:120, h:18, type:'cream'     },
-      { x:1360, y:275, w:140, h:18, type:'chocolate' },
-      { x:1550, y:365, w:130, h:18, type:'nougat'    },
-      { x:1730, y:280, w:120, h:18, type:'cream'     },
-      { x:1940, y:370, w:150, h:18, type:'chocolate' },
-      { x:2140, y:275, w:130, h:18, type:'nougat'    },
-      { x:2310, y:360, w:140, h:18, type:'cream'     },
-      { x:2500, y:270, w:120, h:18, type:'chocolate' },
-      { x:2680, y:360, w:130, h:18, type:'nougat'    },
-      { x:2860, y:272, w:150, h:18, type:'cream'     },
-      { x:3060, y:365, w:120, h:18, type:'chocolate' },
-      { x:3240, y:270, w:140, h:18, type:'nougat'    },
-      { x:3440, y:358, w:130, h:18, type:'cream'     },
-      { x:3630, y:268, w:150, h:18, type:'chocolate' },
-      { x:3840, y:360, w:120, h:18, type:'nougat'    },
-      { x:4010, y:268, w:140, h:18, type:'cream'     },
-      { x:4200, y:358, w:130, h:18, type:'chocolate' },
-      { x:4390, y:268, w:150, h:18, type:'nougat'    },
-      { x:4580, y:360, w:130, h:18, type:'cream'     },
-      { x:4760, y:272, w:140, h:18, type:'chocolate' },
-      { x:4950, y:355, w:130, h:18, type:'nougat'    },
-      { x:5120, y:268, w:150, h:18, type:'cream'     },
-      { x:5310, y:358, w:140, h:18, type:'chocolate' },
-      { x:5480, y:280, w:130, h:18, type:'nougat'    },
-      // High platforms
-      { x:340,  y:220, w:110, h:16, type:'cream'     },
-      { x:660,  y:215, w:120, h:16, type:'chocolate' },
-      { x:1350, y:200, w:130, h:16, type:'nougat'    },
-      { x:1730, y:205, w:120, h:16, type:'cream'     },
-      { x:2500, y:195, w:130, h:16, type:'chocolate' },
-      { x:2860, y:195, w:140, h:16, type:'nougat'    },
-      { x:3630, y:190, w:140, h:16, type:'cream'     },
-      { x:4390, y:190, w:140, h:16, type:'chocolate' },
-      { x:5120, y:188, w:140, h:16, type:'nougat'    },
+      { x:0,    y:500, w:350,  h:20, type:'candy'     },
+      { x:400,  y:500, w:250,  h:20, type:'chocolate' },
+      { x:700,  y:500, w:250,  h:20, type:'cream'     },
+      { x:1000, y:500, w:300,  h:20, type:'nougat'    },
+      { x:1350, y:500, w:250,  h:20, type:'candy'     },
+      { x:1650, y:500, w:300,  h:20, type:'chocolate' },
+      { x:2000, y:500, w:250,  h:20, type:'cream'     },
+      { x:2300, y:500, w:300,  h:20, type:'nougat'    },
+      { x:2650, y:500, w:250,  h:20, type:'candy'     },
+      { x:2950, y:500, w:300,  h:20, type:'chocolate' },
+      { x:3300, y:500, w:250,  h:20, type:'cream'     },
+      { x:3600, y:500, w:300,  h:20, type:'nougat'    },
+      { x:3950, y:500, w:450,  h:20, type:'candy'     },
+      // Hautes plateformes bonus
+      { x:300,  y:380, w:100,  h:16, type:'candy'     },
+      { x:500,  y:310, w:100,  h:16, type:'cream'     },
+      { x:750,  y:380, w:100,  h:16, type:'nougat'    },
+      { x:1000, y:300, w:100,  h:16, type:'chocolate' },
+      { x:1200, y:380, w:100,  h:16, type:'candy'     },
+      { x:1500, y:300, w:100,  h:16, type:'cream'     },
+      { x:1750, y:380, w:100,  h:16, type:'nougat'    },
+      { x:2050, y:300, w:100,  h:16, type:'chocolate' },
+      { x:2350, y:380, w:100,  h:16, type:'candy'     },
+      { x:2700, y:300, w:100,  h:16, type:'cream'     },
+      { x:3000, y:380, w:100,  h:16, type:'nougat'    },
+      { x:3350, y:300, w:100,  h:16, type:'chocolate' },
+      { x:3650, y:380, w:100,  h:16, type:'candy'     },
+      { x:4050, y:300, w:100,  h:16, type:'cream'     },
+      { x:4250, y:380, w:100,  h:16, type:'nougat'    },
+    ],
+    moving: [
+      // Séquence de 8 plateformes mobiles progressivement plus rapides
+      { x:355,  y:470, w:80, h:16, type:'candy',    axis:'x', dist:40,  speed:1.0 },
+      { x:655,  y:470, w:80, h:16, type:'cream',    axis:'y', dist:70,  speed:1.2 },
+      { x:1005, y:460, w:80, h:16, type:'nougat',   axis:'x', dist:100, speed:1.5 },
+      { x:1355, y:460, w:80, h:16, type:'candy',    axis:'y', dist:80,  speed:1.4 },
+      { x:1960, y:460, w:80, h:16, type:'chocolate',axis:'x', dist:120, speed:1.8 },
+      { x:2255, y:460, w:80, h:16, type:'cream',    axis:'y', dist:90,  speed:1.6 },
+      { x:2655, y:460, w:80, h:16, type:'nougat',   axis:'x', dist:140, speed:2.0 },
+      { x:2955, y:450, w:80, h:16, type:'candy',    axis:'y', dist:100, speed:2.0 },
+      { x:3305, y:450, w:80, h:16, type:'chocolate',axis:'x', dist:150, speed:2.2 },
+      { x:3605, y:450, w:80, h:16, type:'cream',    axis:'y', dist:110, speed:2.2 },
+    ],
+    checkpoints: [
+      { x:900,  y:460 },
+      { x:1900, y:460 },
+      { x:3000, y:460 },
     ],
     collectibles: [
-      {x:120,y:425},{x:185,y:350},{x:220,y:350},{x:260,y:350},
-      {x:355,y:275},{x:395,y:275},{x:435,y:275},
-      {x:495,y:345},{x:535,y:345},{x:575,y:345},
-      {x:665,y:270},{x:705,y:270},
-      {x:825,y:345},{x:865,y:345},{x:900,y:345},
-      {x:1005,y:260},{x:1045,y:260},{x:1085,y:260},
-      {x:1365,y:250},{x:1405,y:250},{x:1440,y:250},
-      {x:1555,y:340},{x:1595,y:340},
-      {x:1735,y:255},{x:1775,y:255},
-      {x:1945,y:345},{x:1985,y:345},{x:2025,y:345},
-      {x:2145,y:250},{x:2185,y:250},
-      {x:2505,y:245},{x:2545,y:245},{x:2580,y:245},
-      {x:2685,y:335},{x:2725,y:335},
-      {x:2865,y:248},{x:2905,y:248},{x:2945,y:248},
-      {x:3065,y:340},{x:3100,y:340},
-      {x:3245,y:245},{x:3285,y:245},{x:3325,y:245},
-      {x:3635,y:243},{x:3675,y:243},{x:3715,y:243},
-      {x:3845,y:335},{x:3880,y:335},
-      {x:4015,y:243},{x:4055,y:243},{x:4090,y:243},
-      {x:4395,y:243},{x:4435,y:243},{x:4475,y:243},
-      {x:4585,y:335},{x:4625,y:335},
-      {x:4765,y:248},{x:4805,y:248},{x:4845,y:248},
-      {x:4955,y:330},{x:4995,y:330},
-      {x:5125,y:243},{x:5165,y:243},{x:5205,y:243},
-      {x:5315,y:333},{x:5355,y:333},
-      {x:5485,y:255},{x:5525,y:255},
-      // High bonuses
-      {x:345,y:195},{x:385,y:195},
-      {x:1355,y:175},{x:1395,y:175},
-      {x:2505,y:170},{x:2545,y:170},
-      {x:3635,y:165},{x:3675,y:165},
-      {x:5125,y:163},{x:5165,y:163},
+      ...[120,200,280,360,440,520,620,720,820,920,1020,1120,1220,1320,1420,
+          1520,1620,1720,1820,1920,2020,2120,2220,2320,2420,2520,2620,2720,
+          2820,2920,3020,3120,3220,3320,3420,3520,3620,3720,3820,3920,4020,
+          4120,4220,4320].map(
+        (x,i) => ({ x, y: 240 + (i%5)*38 })
+      ),
     ],
-    powerUps: [
-      { x:400,  y:270, type:'speed'      },
-      { x:1140, y:258, type:'doubleJump' },
-      { x:1900, y:248, type:'dash'       },
-      { x:2145, y:248, type:'shield'     },
-      { x:3245, y:242, type:'speed'      },
-      { x:3850, y:330, type:'doubleJump' },
-      { x:4395, y:238, type:'ultra'      },
-      { x:5125, y:160, type:'shield'     },
+    powerups: [
+      { x:500,  y:270, w:32, h:32, type:'doubleJump' },
+      { x:1000, y:260, w:32, h:32, type:'speed'      },
+      { x:1750, y:260, w:32, h:32, type:'dash'       },
+      { x:2700, y:260, w:32, h:32, type:'shield'     },
+      { x:3350, y:260, w:32, h:32, type:'ultra'      },
+      { x:4060, y:260, w:32, h:32, type:'doubleJump' },
     ],
     enemies: [
-      { type:'chocolate', x:400,  y:415, range:130 },
-      { type:'hazelnut',  x:700,  y:415 },
-      { type:'chocolate', x:1050, y:415, range:150 },
-      { type:'guard',     x:1420, y:415 },
-      { type:'hazelnut',  x:1980, y:415 },
-      { type:'chocolate', x:2360, y:415, range:140 },
-      { type:'guard',     x:2720, y:415 },
-      { type:'hazelnut',  x:3130, y:415 },
-      { type:'chocolate', x:3510, y:415, range:150 },
-      { type:'guard',     x:3920, y:415 },
-      { type:'hazelnut',  x:4320, y:415 },
-      { type:'chocolate', x:4680, y:415, range:130 },
-      { type:'guard',     x:5000, y:415 },
-      { type:'hazelnut',  x:5300, y:415 },
-      { type:'guard',     x:5490, y:415 },
+      { x:420,  y:480, type:'chocolate', range:160 },
+      { x:720,  y:480, type:'hazelnut'             },
+      { x:1020, y:480, type:'guard',     range:220 },
+      { x:1370, y:480, type:'hazelnut'             },
+      { x:1670, y:480, type:'chocolate', range:180 },
+      { x:2020, y:480, type:'guard',     range:240 },
+      { x:2320, y:480, type:'hazelnut'             },
+      { x:2670, y:480, type:'chocolate', range:200 },
+      { x:2970, y:480, type:'guard',     range:260 },
+      { x:3320, y:480, type:'hazelnut'             },
+      { x:3620, y:480, type:'chocolate', range:220 },
+      { x:3970, y:480, type:'guard',     range:280 },
     ],
+    endZone: { x:4330, y:380, w:56, h:80 },
   },
 ];
 
@@ -2052,22 +1975,22 @@ const LEVELS = [
 // ============================================================
 const QUIZZES = [
   {
-    q: 'Quelle marque fabrique les Schoko Bons ?',
+    q: 'Quelle marque fabrique les Schoko-Bons ?',
     a: ['Nestlé', 'Haribo', 'Kinder (Ferrero)', 'Mars'],
     ok: 2,
-    expl: 'Kinder est une marque de Ferrero, société fondée en 1946 en Italie. "Kinder" signifie "enfants" en allemand !',
+    expl: 'Kinder est une marque de Ferrero, fondée en 1946 en Italie. "Kinder" signifie "enfants" en allemand !',
   },
   {
-    q: 'De quoi est composé l\'intérieur d\'un Schoko Bon ?',
+    q: 'De quoi est composé l\'intérieur d\'un Schoko-Bon ?',
     a: ['Caramel pur', 'Farce noisette et chocolat blanc', 'Guimauve', 'Confiture de fraise'],
     ok: 1,
-    expl: 'Les Schoko Bons ont une coque en chocolat au lait et une délicieuse farce à base de noisette et chocolat blanc !',
+    expl: 'Les Schoko-Bons ont une coque en chocolat au lait et une farce à base de noisette et chocolat blanc.',
   },
   {
-    q: 'En quelle année le Kinder Surprise a-t-il été lancé ?',
-    a: ['1958', '1964', '1974', '1982'],
-    ok: 2,
-    expl: 'Le Kinder Surprise a été lancé en 1974 en Italie ! Les Schoko Bons, eux, ont suivi quelques années plus tard.',
+    q: 'En quelle année les Schoko-Bons ont-ils été lancés en France ?',
+    a: ['1984', '1991', '1997', '2003'],
+    ok: 1,
+    expl: 'Les Schoko-Bons sont arrivés en France en 1991 et sont rapidement devenus un incontournable du rayon confiserie !',
   },
 ];
 
@@ -2780,48 +2703,133 @@ function drawMenu() {
 // GAME OVER
 // ============================================================
 function drawGameOver() {
-  ctx.fillStyle='rgba(0,0,0,0.88)'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#E8001C'; ctx.font='bold 58px Arial'; ctx.textAlign='center';
-  ctx.fillText('GAME OVER', W/2, H/2-55);
-  ctx.fillStyle='#FFD700'; ctx.font='22px Arial';
-  ctx.fillText(`Score final : ${score}`, W/2, H/2+5);
-  ctx.fillStyle='#FAEBD7'; ctx.font='16px Arial';
-  ctx.fillText('Appuie sur ENTRÉE pour rejouer', W/2, H/2+55);
+  // Animated dark overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0,0,W,H);
+
+  // Pulsing red vignette
+  const vr = ctx.createRadialGradient(W/2,H/2,H*0.1,W/2,H/2,H*0.9);
+  vr.addColorStop(0,'rgba(0,0,0,0)');
+  vr.addColorStop(1,`rgba(180,0,0,${0.4+0.15*Math.sin(frameCount*0.06)})`);
+  ctx.fillStyle=vr; ctx.fillRect(0,0,W,H);
+
+  // Shattered chocolate pieces falling
+  ctx.save();
+  for (let i=0;i<12;i++) {
+    const px=W*0.15+i*(W*0.06), py=(frameCount*0.8+i*55)%(H+80)-40;
+    const rot=(frameCount*0.02+i)*1.3;
+    ctx.save(); ctx.translate(px,py); ctx.rotate(rot);
+    ctx.fillStyle=`rgba(80,30,5,${0.5+0.3*Math.sin(i)})`;
+    ctx.fillRect(-12,-8,24,16); ctx.restore();
+  }
+  ctx.restore();
+
+  // Title
+  ctx.textAlign='center';
+  ctx.shadowColor='#E8001C'; ctx.shadowBlur=30;
+  ctx.fillStyle='#E8001C'; ctx.font='bold 64px Arial';
+  ctx.fillText('GAME OVER', W/2, H/2-70);
+  ctx.shadowBlur=0;
+
+  // Score panel
+  _clipRR(W/2-160, H/2-28, 320, 56, 12);
+  ctx.save(); ctx.clip();
+  const spg=ctx.createLinearGradient(W/2-160,H/2-28,W/2+160,H/2+28);
+  spg.addColorStop(0,'rgba(80,10,10,0.85)'); spg.addColorStop(1,'rgba(40,5,5,0.85)');
+  ctx.fillStyle=spg; ctx.fillRect(W/2-160,H/2-28,320,56);
+  ctx.restore();
+  ctx.strokeStyle='rgba(230,0,0,0.6)'; ctx.lineWidth=2;
+  _clipRR(W/2-160, H/2-28, 320, 56, 12); ctx.stroke();
+  ctx.fillStyle='#FFD700'; ctx.font='bold 26px Arial';
+  ctx.fillText(`Score : ${score}`, W/2, H/2+8);
+
+  // Lives lost info
+  ctx.fillStyle='rgba(255,180,180,0.9)'; ctx.font='16px Arial';
+  ctx.fillText('Plus de vies… retente ta chance !', W/2, H/2+52);
+
+  // Blinking restart prompt
+  if (Math.floor(frameCount/28)%2===0) {
+    ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.font='bold 18px Arial';
+    ctx.fillText('▶  ENTRÉE / ESPACE / TOUCHER pour recommencer', W/2, H/2+92);
+  }
   ctx.textAlign='left';
-  if (just('Enter')||just('Space')) gameState='menu';
+  if (just('Enter')||just('Space')) { sfx.menuClick(); gameState='menu'; }
 }
 
 // ============================================================
 // WIN SCREEN
 // ============================================================
 function drawWin() {
+  // Gradient BG
   const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#FFD700'); g.addColorStop(1,'#FF8C00');
+  g.addColorStop(0,'#1A0050'); g.addColorStop(0.5,'#3A0080'); g.addColorStop(1,'#180030');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  // Confetti
-  for (let i=0;i<24;i++) {
-    const cx2=((i*163+frameCount*2.8)%W), cy2=((i*127+frameCount*2)%H);
-    ctx.fillStyle=['#E8001C','#FFFFFF','#5C3317','#FFD700','#00CFFF'][i%5];
-    ctx.save(); ctx.translate(cx2,cy2); ctx.rotate(frameCount*0.05+i); ctx.fillRect(-4,-4,8,8); ctx.restore();
+
+  // Stars / sparkles background
+  for (let i=0;i<40;i++) {
+    const sx=(i*137+frameCount*0.4)%W;
+    const sy=(i*89)%(H*0.7);
+    const sr=1+Math.sin(frameCount*0.07+i)*0.8;
+    ctx.fillStyle=`rgba(255,220,100,${0.3+0.4*Math.sin(frameCount*0.05+i*0.4)})`;
+    ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
   }
-  ctx.fillStyle='#3D1F0D'; ctx.font='bold 48px Arial'; ctx.textAlign='center';
-  ctx.fillText('VICTOIRE !', W/2, 120);
-  ctx.fillStyle='#5C3317'; ctx.font='20px Arial';
-  ctx.fillText('Félicitations ! Tu as terminé', W/2,175);
-  ctx.fillText('Schoko Bons Adventure !', W/2,202);
-  ctx.fillStyle='#E8001C'; ctx.font='bold 26px Arial';
-  ctx.fillText(`Score total : ${score}`, W/2,265);
-  highScore = Math.max(highScore, score);
-  ctx.fillStyle='#5C3317'; ctx.font='16px Arial';
-  ctx.fillText(`Meilleur score : ${highScore}`, W/2,300);
-  const stars = score > 2500 ? 3 : score > 1200 ? 2 : 1;
-  ctx.font='44px Arial'; ctx.fillText('⭐'.repeat(stars), W/2, 360);
-  ctx.font='13px Arial'; ctx.fillStyle='rgba(92,51,23,0.7)';
-  ctx.fillText(stars===3?'Maître Chocolatier !':stars===2?'Expert Sucré !':'Apprenti Gourmand', W/2,390);
-  rRect(W/2-130,H-115,260,52,14,'#E8001C','#FFD700',2);
-  ctx.fillStyle='#FFF'; ctx.font='bold 19px Arial'; ctx.fillText('Rejouer', W/2, H-83);
+
+  // Confetti
+  for (let i=0;i<30;i++) {
+    const cx2=((i*97+frameCount*1.8)%(W+60))-30;
+    const cy2=((i*61+frameCount*0.9)%(H+60))-30;
+    const cr=(frameCount*0.04+i)*1.5;
+    const cc=['#FFD700','#FF4466','#44FFAA','#4488FF','#FF8844'][i%5];
+    ctx.save(); ctx.translate(cx2,cy2); ctx.rotate(cr);
+    ctx.fillStyle=cc; ctx.fillRect(-6,-4,12,8); ctx.restore();
+  }
+
+  // Title glow
+  ctx.textAlign='center';
+  ctx.shadowColor='#FFD700'; ctx.shadowBlur=40;
+  ctx.fillStyle='#FFD700'; ctx.font='bold 68px Arial';
+  ctx.fillText('VICTOIRE !', W/2, 115);
+  ctx.shadowBlur=0;
+
+  ctx.fillStyle='rgba(255,230,180,0.95)'; ctx.font='22px Arial';
+  ctx.fillText('Tu as terminé tous les niveaux !', W/2, 162);
+
+  // Score panel
+  ctx.save();
+  _clipRR(W/2-200, 188, 400, 80, 16); ctx.clip();
+  const sp=ctx.createLinearGradient(W/2-200,188,W/2+200,268);
+  sp.addColorStop(0,'rgba(100,50,0,0.85)'); sp.addColorStop(1,'rgba(50,20,0,0.85)');
+  ctx.fillStyle=sp; ctx.fillRect(W/2-200,188,400,80);
+  ctx.restore();
+  ctx.strokeStyle='rgba(255,200,50,0.7)'; ctx.lineWidth=2;
+  _clipRR(W/2-200, 188, 400, 80, 16); ctx.stroke();
+  ctx.fillStyle='#FFFFFF'; ctx.font='bold 20px Arial';
+  ctx.fillText(`Score final : ${score}`, W/2, 222);
+  if (score > highScore) { highScore = score; }
+  ctx.fillStyle='#FFD700'; ctx.font='16px Arial';
+  ctx.fillText(`Record : ${highScore}`, W/2, 254);
+
+  // Star rating
+  const stars = score >= 3000 ? 3 : score >= 1500 ? 2 : 1;
+  const labels = ['Apprenti Gourmand', 'Expert Sucré !', 'Maître Chocolatier !'];
+  for (let s=0;s<3;s++) {
+    const sx=W/2 - 60 + s*60;
+    const sy=295;
+    const lit = s < stars;
+    ctx.fillStyle = lit ? '#FFD700' : 'rgba(255,255,255,0.2)';
+    ctx.font = '36px Arial';
+    ctx.fillText('★', sx, sy);
+  }
+  ctx.fillStyle = stars===3 ? '#FFD700' : 'rgba(255,255,255,0.7)';
+  ctx.font = 'bold 20px Arial';
+  ctx.fillText(labels[stars-1], W/2, 330);
+
+  // Blinking prompt
+  if (Math.floor(frameCount/30)%2===0) {
+    ctx.fillStyle='rgba(255,255,255,0.88)'; ctx.font='bold 18px Arial';
+    ctx.fillText('▶  ENTRÉE / ESPACE / TOUCHER pour rejouer', W/2, 390);
+  }
   ctx.textAlign='left';
-  if (just('Enter')||just('Space')) gameState='menu';
+  if (just('Enter')||just('Space')) { sfx.menuClick(); score=0; lives=3; loadLevel(0); }
 }
 
 // ============================================================
@@ -2850,11 +2858,39 @@ function loop() {
   // ---- PLAYING ----
   // Update
   if (player && !player.dead) player.update();
+  lMoving.forEach(m => m.update());
+  lCheckpoints.forEach(c => c.update());
   lEnemies.forEach(e => e.update());
   lCollectibles.forEach(c => c.update());
   lPowerUps.forEach(p => p.update());
   particles = particles.filter(p => { p.update(); return p.alive; });
   updateNotifications();
+
+  // Checkpoint collision
+  if (player && !player.dead) {
+    for (const cp of lCheckpoints) {
+      if (!cp.activated && overlap(
+        { x: player.x, y: player.y, w: player.w, h: player.h },
+        { x: cp.x, y: cp.y, w: cp.w, h: cp.h }
+      )) {
+        cp.activated = true; checkpointHit = true;
+        checkpointX = cp.x; checkpointY = cp.y - player.h;
+        burst(cp.x + 14, cp.y, '#FFD700', 14, 4);
+        notify('Checkpoint !', '#FFD700');
+        sfx.collect();
+      }
+    }
+  }
+
+  // Player rides moving platforms
+  if (player && player.onGround) {
+    for (const m of lMoving) {
+      if (overlap({ x: player.x, y: player.y + player.h - 4, w: player.w, h: 8 },
+                  { x: m.x, y: m.y, w: m.w, h: 4 })) {
+        player.x += m.dx; player.y += m.dy;
+      }
+    }
+  }
 
   // Camera smooth follow
   if (player) {
@@ -2884,6 +2920,8 @@ function loop() {
   } else { camera.shake = 0; }
   ctx.translate(-camera.x, 0);
   lPlatforms.forEach(p => p.draw());
+  lMoving.forEach(m => m.draw());
+  lCheckpoints.forEach(c => c.draw());
   lCollectibles.forEach(c => c.draw());
   lPowerUps.forEach(p => p.draw());
   lEnemies.forEach(e => e.draw());
@@ -2895,6 +2933,19 @@ function loop() {
   drawHUD();
   touch.draw();
   drawNotifications();
+
+  // Damage flash overlay
+  if (flashTimer > 0) {
+    ctx.fillStyle = `rgba(220,0,0,${flashTimer / 12 * 0.35})`;
+    ctx.fillRect(0, 0, W, H);
+    flashTimer--;
+  }
+  // Level transition fade-in
+  if (levelTransition > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${levelTransition / 30})`;
+    ctx.fillRect(0, 0, W, H);
+    levelTransition--;
+  }
 
   requestAnimationFrame(loop);
 }
