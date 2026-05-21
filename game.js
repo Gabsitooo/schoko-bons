@@ -1124,14 +1124,29 @@ class PowerUpItem {
 // ============================================================
 // BLOCK RENDERER — textures haute qualité par type
 // ============================================================
+// helper — clip to rounded rect
+function _clipRR(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+
 function drawBlock(x, y, w, h, type) {
   ctx.save();
+  const R = 7;
 
-  // Drop shadow
-  ctx.shadowColor = 'rgba(0,0,0,0.42)';
-  ctx.shadowBlur = 10; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 6;
-  ctx.fillStyle = 'rgba(0,0,0,0.01)'; ctx.fillRect(x, y, w, h);
+  // ── Drop shadow ──
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 12; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 7;
+  _clipRR(x, y, w, h, R); ctx.fillStyle = 'rgba(0,0,0,0.01)'; ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+  // ── Clip all interior drawing to rounded rect ──
+  _clipRR(x, y, w, h, R); ctx.clip();
 
   if (type === 'chocolate') {
     // Main gradient body
