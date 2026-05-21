@@ -33,24 +33,18 @@ html, body {
 }
   </style>
   <script>
-  /* Catch errors BEFORE the load handler fires */
   window.onerror = function(m, s, l, c, e) {
-    var d = document.getElementById('err');
-    if (d) { d.style.display = 'block'; d.textContent = (e && e.stack) ? e.stack : m; }
+    var d = document.getElementById("err");
+    if (d) { d.style.display = "block"; d.textContent = (e && e.stack) ? e.stack : m; }
   };
   </script>
 </head>
 <body>
-
-  <!-- Error banner - visible if any JS exception occurs -->
   <div id="err" style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font:12px monospace;padding:8px;z-index:9999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;"></div>
-
-  <!-- Canvas centered via margin:auto — no flexbox, no transform tricks -->
   <canvas id="gameCanvas" width="960" height="540"></canvas>
-
   <script>
-window.addEventListener('load', function() {
-'use strict';
+window.addEventListener("load", function() {
+"use strict";
 try {
 
 
@@ -83,16 +77,16 @@ resizeCanvas();
 // PHYSICS CONSTANTS — moteur pro
 // ============================================================
 const GRAVITY       = 0.55;   // gravité de base
-const GRAVITY_FALL  = 1.05;   // plus lourde en descente → chute nette
-const GRAVITY_RISE  = 0.38;   // plus légère en montée (bouton maintenu)
-const GRAVITY_CUT   = 0.70;   // si on lâche saut tôt → coupe la montée
+const GRAVITY_FALL  = 1.15;   // plus lourde en descente → chute nette
+const GRAVITY_RISE  = 0.44;   // plus légère en montée (bouton maintenu)
+const GRAVITY_CUT   = 0.65;   // si on lâche saut tôt → coupe la montée
 const MAX_FALL      = 20;
-const PLAYER_SPMAX  = 6.5;
-const PLAYER_ACCEL  = 2.2;    // accél sol
+const PLAYER_SPMAX  = 5.8;
+const PLAYER_ACCEL  = 1.9;    // accél sol
 const PLAYER_ACCEL_AIR = 1.0; // accél air (moins de contrôle)
 const GROUND_FRIC   = 0.76;   // friction sol (arrêt net)
 const AIR_FRIC      = 0.94;   // friction air
-const JUMP_FORCE    = -15;
+const JUMP_FORCE    = -11.5;
 const COYOTE_T      = 8;      // frames de grâce après avoir quitté un bord
 const JUMP_BUFFER   = 8;      // frames de buffer avant l'atterrissage
 
@@ -116,12 +110,19 @@ let quizTimer      = 0;
 
 // Level objects
 let lPlatforms     = [];
+let lMoving        = [];
+let lCheckpoints   = [];
 let lEnemies       = [];
 let lCollectibles  = [];
 let lPowerUps      = [];
 let lEndZone       = null;
 let levelData      = null;
 let player         = null;
+let checkpointX    = 0;   // respawn X after checkpoint
+let checkpointY    = 0;   // respawn Y after checkpoint
+let checkpointHit  = false;
+let flashTimer     = 0;   // damage screen flash frames
+let levelTransition= 0;   // fade-in frames when level loads (30 frames)
 
 // ============================================================
 // INPUT
@@ -683,7 +684,7 @@ class Player {
   }
 
   _resolveX() {
-    for (const p of lPlatforms) {
+    for (const p of [...lPlatforms, ...lMoving]) {
       if (!overlap({ x: this.x, y: this.y + 3, w: this.w, h: this.h - 6 },
                    { x: p.x, y: p.y, w: p.w, h: p.h })) continue;
       if (this.vx > 0) { this.x = p.x - this.w; this.wallDir =  1; }
@@ -693,7 +694,7 @@ class Player {
   }
 
   _resolveY() {
-    for (const p of lPlatforms) {
+    for (const p of [...lPlatforms, ...lMoving]) {
       if (!overlap({ x: this.x + 2, y: this.y, w: this.w - 4, h: this.h },
                    { x: p.x, y: p.y, w: p.w, h: p.h })) continue;
       if (this.vy >= 0) {
@@ -714,6 +715,7 @@ class Player {
     this.hp--;
     this.iframes = 90;
     camera.shake = 9;
+    flashTimer = 12;
     sfx.damage();
     if (this.hp <= 0) { this.die(); return; }
     this.vy = -8;
@@ -728,7 +730,14 @@ class Player {
     lives--;
     setTimeout(() => {
       if (lives <= 0) { sfx.gameOver(); gameState = 'gameover'; }
-      else            loadLevel(currentLevel);
+      else {
+        loadLevel(currentLevel);
+        // Respawn at checkpoint if one was activated
+        if (checkpointHit) {
+          player.x = checkpointX;
+          player.y = checkpointY;
+        }
+      }
     }, 900);
   }
 
@@ -1338,6 +1347,67 @@ class PowerUpItem {
       ctx.fillText(cfg.icon, cx, cy);
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
     }
+  }
+}
+
+// ============================================================
+// MOVING PLATFORM
+// ============================================================
+class MovingPlatform {
+  constructor(x, y, w, h, type, axis, dist, speed) {
+    this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
+    this.ox = x; this.oy = y;    // origin
+    this.axis = axis;            // 'x' or 'y'
+    this.dist = dist;            // travel distance (px)
+    this.speed = speed;          // px per frame
+    this.dir = 1;
+    this.dx = 0; this.dy = 0;   // delta this frame (for player riding)
+  }
+  update() {
+    const prev = this.axis === 'x' ? this.x : this.y;
+    if (this.axis === 'x') {
+      this.x += this.speed * this.dir;
+      if (this.x > this.ox + this.dist || this.x < this.ox) this.dir *= -1;
+      this.dx = this.x - prev; this.dy = 0;
+    } else {
+      this.y += this.speed * this.dir;
+      if (this.y > this.oy + this.dist || this.y < this.oy) this.dir *= -1;
+      this.dx = 0; this.dy = this.y - prev;
+    }
+  }
+  draw() { drawBlock(this.x, this.y, this.w, this.h, this.type); }
+}
+
+// ============================================================
+// CHECKPOINT
+// ============================================================
+class Checkpoint {
+  constructor(x, y) {
+    this.x = x; this.y = y; this.w = 28; this.h = 48;
+    this.activated = false; this.pulse = 0;
+  }
+  update() { this.pulse = (this.pulse + 0.08) % (Math.PI * 2); }
+  draw() {
+    ctx.save(); ctx.translate(this.x + 14, this.y);
+    // Pole
+    ctx.fillStyle = this.activated ? '#FFD700' : '#888';
+    ctx.fillRect(-3, 0, 6, 48);
+    // Flag
+    const fc = this.activated ? '#FFD700' : '#AAAAAA';
+    const wave = this.activated ? Math.sin(this.pulse) * 6 : 0;
+    ctx.fillStyle = fc;
+    ctx.beginPath();
+    ctx.moveTo(3, 4); ctx.lineTo(3 + 22, 10 + wave);
+    ctx.lineTo(3 + 22, 22 + wave); ctx.lineTo(3, 22);
+    ctx.closePath(); ctx.fill();
+    // Glow when activated
+    if (this.activated) {
+      const glow = ctx.createRadialGradient(0, 24, 0, 0, 24, 30 + Math.sin(this.pulse) * 5);
+      glow.addColorStop(0, 'rgba(255,215,0,0.25)');
+      glow.addColorStop(1, 'rgba(255,215,0,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 24, 40, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 }
 
@@ -2018,8 +2088,15 @@ function loadLevel(idx) {
   lPlatforms     = levelData.platforms.map(p => new Platform(p));
   lEnemies       = levelData.enemies.map(e => mkEnemy(e));
   lCollectibles  = levelData.collectibles.map(c => new SchokoBot(c.x, c.y));
-  lPowerUps      = levelData.powerUps.map(p => new PowerUpItem(p.x, p.y, p.type));
-  lEndZone       = levelData.end;
+  lPowerUps      = (levelData.powerups || levelData.powerUps || []).map(p => new PowerUpItem(p.x, p.y, p.type));
+  lEndZone       = levelData.endZone || levelData.end;
+  lMoving      = (levelData.moving  || []).map(m => new MovingPlatform(m.x,m.y,m.w,m.h,m.type,m.axis,m.dist,m.speed));
+  lCheckpoints = (levelData.checkpoints || []).map(c => new Checkpoint(c.x, c.y));
+  checkpointHit  = false;
+  checkpointX    = levelData.spawn.x;
+  checkpointY    = levelData.spawn.y;
+  flashTimer     = 0;
+  levelTransition = 30;
   player         = new Player(levelData.spawn.x, levelData.spawn.y);
   camera         = { x: 0 };
   particles      = [];
@@ -2829,8 +2906,8 @@ loop();
 
 
 } catch(e) {
-  var d = document.getElementById('err');
-  if (d) { d.style.display = 'block'; d.textContent = 'LOAD ERR: ' + (e.stack || e.message || String(e)); }
+  var d = document.getElementById("err");
+  if (d) { d.style.display = "block"; d.textContent = "LOAD ERR: " + (e.stack || e.message || String(e)); }
 }
 });
   </script>
