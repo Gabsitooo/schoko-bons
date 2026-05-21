@@ -15,21 +15,15 @@ canvas.height = VH;
 let W = VW, H = VH;
 
 function resizeCanvas() {
-  // Use innerWidth/Height with screen fallback — simple and reliable on all browsers
-  const vw = window.innerWidth  || screen.width  || VW;
-  const vh = window.innerHeight || screen.height || VH;
-  const s  = Math.min(vw / VW, vh / VH);
+  var vw = window.innerWidth  || screen.width  || VW;
+  var vh = window.innerHeight || screen.height || VH;
+  var s  = Math.min(vw / VW, vh / VH);
   canvas.style.width  = Math.floor(VW * s) + 'px';
   canvas.style.height = Math.floor(VH * s) + 'px';
 }
-window.addEventListener('resize',      resizeCanvas);
-window.addEventListener('orientationchange', function() {
-  // iOS fires orientationchange before innerWidth/Height update — wait a tick
-  setTimeout(resizeCanvas, 200);
-});
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', function() { setTimeout(resizeCanvas, 300); });
 resizeCanvas();
-// Re-run after first paint in case iOS address bar shifted the viewport
-setTimeout(resizeCanvas, 100);
 
 // ============================================================
 // PHYSICS CONSTANTS — moteur pro

@@ -9,96 +9,46 @@
   <meta name="theme-color" content="#120800">
   <title>Schoko Bons Adventure</title>
   <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
 html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
   background: #120800;
-  font-family: Arial, sans-serif;
+  overflow: hidden;
   touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
+  -webkit-user-select: none; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Flexbox centering — far more reliable on iOS than position+transform */
-#wrap {
+/* Center via margin:auto on fixed element — no flexbox, no transform, works everywhere */
+#gameCanvas {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  display: -webkit-flex;
-  display: flex;
-  -webkit-align-items: center;
-  align-items: center;
-  -webkit-justify-content: center;
-  justify-content: center;
-  background: #120800;
-}
-
-#gameCanvas {
+  margin: auto;
   display: block;
-  /* Size set entirely by JS — no CSS sizing that fights with JS */
   touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-  cursor: none;
-  /* Pixel-crisp rendering */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-}
-
-/* Portrait-mode hint (iPhone held vertically) */
-#rotate {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: #120800;
-  color: #FFD700;
-  font-size: 20px;
-  font-family: Arial, sans-serif;
-  text-align: center;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 16px;
-  z-index: 10;
-}
-#rotate span { font-size: 52px; }
-
-@media (max-width: 600px) and (orientation: portrait) {
-  #rotate {
-    display: -webkit-flex;
-    display: flex;
-  }
+  cursor: none;
 }
   </style>
-  <!-- Catch uncaught errors and show them on screen so we can debug on mobile -->
   <script>
-  window.onerror = function(msg, src, line, col, err) {
-    var d = document.getElementById('errbanner');
-    if (d) { d.style.display='block'; d.textContent = (err ? err.stack : msg) || msg; }
-    return false;
+  /* Catch errors BEFORE the load handler fires */
+  window.onerror = function(m, s, l, c, e) {
+    var d = document.getElementById('err');
+    if (d) { d.style.display = 'block'; d.textContent = (e && e.stack) ? e.stack : m; }
   };
   </script>
 </head>
 <body>
-  <!-- Red error banner: invisible until an exception occurs -->
-  <div id="errbanner" style="display:none;position:fixed;top:0;left:0;width:100%;background:#c00;color:#fff;font:11px monospace;padding:6px 8px;z-index:9999;white-space:pre-wrap;word-break:break-all;max-height:40%;overflow:auto;"></div>
 
-  <!-- Portrait hint shown via CSS media query -->
-  <div id="rotate">
-    <span>&#8635;</span>
-    <p>Tourne ton téléphone en mode paysage</p>
-  </div>
+  <!-- Error banner - visible if any JS exception occurs -->
+  <div id="err" style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font:12px monospace;padding:8px;z-index:9999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;"></div>
 
-  <!-- Flex wrapper: most reliable centering on iOS (no transform, no position tricks on canvas) -->
-  <div id="wrap">
-    <canvas id="gameCanvas" width="960" height="540"></canvas>
-  </div>
+  <!-- Canvas centered via margin:auto — no flexbox, no transform tricks -->
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
 
   <script>
-// Wait for full page load so iOS viewport dimensions are stable
 window.addEventListener('load', function() {
 'use strict';
 try {
@@ -119,21 +69,15 @@ canvas.height = VH;
 let W = VW, H = VH;
 
 function resizeCanvas() {
-  // Use innerWidth/Height with screen fallback — simple and reliable on all browsers
-  const vw = window.innerWidth  || screen.width  || VW;
-  const vh = window.innerHeight || screen.height || VH;
-  const s  = Math.min(vw / VW, vh / VH);
+  var vw = window.innerWidth  || screen.width  || VW;
+  var vh = window.innerHeight || screen.height || VH;
+  var s  = Math.min(vw / VW, vh / VH);
   canvas.style.width  = Math.floor(VW * s) + 'px';
   canvas.style.height = Math.floor(VH * s) + 'px';
 }
-window.addEventListener('resize',      resizeCanvas);
-window.addEventListener('orientationchange', function() {
-  // iOS fires orientationchange before innerWidth/Height update — wait a tick
-  setTimeout(resizeCanvas, 200);
-});
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', function() { setTimeout(resizeCanvas, 300); });
 resizeCanvas();
-// Re-run after first paint in case iOS address bar shifted the viewport
-setTimeout(resizeCanvas, 100);
 
 // ============================================================
 // PHYSICS CONSTANTS — moteur pro
@@ -2885,10 +2829,10 @@ loop();
 
 
 } catch(e) {
-  var d = document.getElementById('errbanner');
-  if (d) { d.style.display='block'; d.textContent = 'INIT ERROR: ' + (e.stack || e.message || e); }
+  var d = document.getElementById('err');
+  if (d) { d.style.display = 'block'; d.textContent = 'LOAD ERR: ' + (e.stack || e.message || String(e)); }
 }
-}); // end load
+});
   </script>
 </body>
 </html>
