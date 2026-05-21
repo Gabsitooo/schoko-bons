@@ -81,9 +81,8 @@ document.addEventListener('keydown', e => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
 });
 document.addEventListener('keyup', e => { keys[e.code] = { held: false, just: false }; });
-// iOS Safari: block elastic scroll / page bounce at document level
-document.addEventListener('touchmove',  e => e.preventDefault(), { passive: false });
-document.addEventListener('touchstart', e => { if (e.target !== canvas) e.preventDefault(); }, { passive: false });
+// Block iOS elastic scroll — touchmove only (no conflicting touchstart listener here)
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
 // ============================================================
 // SOUND ENGINE — Web Audio API (synthesised, no files)
@@ -92,23 +91,10 @@ const sfx = (() => {
   let _ac = null;
 
   // iOS Safari: AudioContext must be created AND unlocked (via silent buffer)
-  // inside a direct user-gesture handler. We do it on the very first touch.
-  function _unlock() {
-    if (!_ac) {
-      try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
-    }
-    if (_ac.state === 'suspended') _ac.resume();
-    // Play a 1-frame silent buffer — required to unlock audio on iOS
-    try {
-      const buf = _ac.createBuffer(1, 1, _ac.sampleRate);
-      const src = _ac.createBufferSource();
-      src.buffer = buf; src.connect(_ac.destination);
-      src.start(0);
-    } catch(e) {}
-  }
-  document.addEventListener('touchstart', _unlock, { once: true, passive: true });
-  document.addEventListener('touchend',   _unlock, { once: true, passive: true });
-  document.addEventListener('mousedown',  _unlock, { once: true, passive: true });
+  // inside a direct user-gesture handler.
+  // We export _unlock so the canvas touchstart handler can call it directly —
+  // that avoids having two competing document-level touchstart listeners
+  // (one passive, one non-passive) which iOS Safari silently rejects.
 
   function ac() {
     if (!_ac) {
@@ -148,7 +134,19 @@ const sfx = (() => {
       src.start(); src.stop(a.currentTime + dur + 0.01);
     } catch(e) {}
   }
+  function unlock() {
+    if (!_ac) {
+      try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
+    }
+    if (_ac.state === 'suspended') _ac.resume();
+    try {
+      const buf = _ac.createBuffer(1, 1, _ac.sampleRate);
+      const src = _ac.createBufferSource();
+      src.buffer = buf; src.connect(_ac.destination); src.start(0);
+    } catch(e) {}
+  }
   return {
+    unlock,
     jump()       { tone(300,'square',0.22,0.18,600); },
     doubleJump() { tone(500,'square',0.18,0.09,1000); setTimeout(()=>tone(750,'square',0.15,0.09,1500),75); },
     wallJump()   { tone(350,'square',0.20,0.14,550); noise(0.12,0.08,500,2); },
@@ -203,6 +201,7 @@ const touch = (() => {
 
   canvas.addEventListener('touchstart', e => {
     e.preventDefault(); _mobile = true;
+    sfx.unlock(); // iOS Safari audio unlock — must be inside a user-gesture handler
     for (const t of e.changedTouches) {
       const [cx,cy] = _xy(t.clientX, t.clientY);
       if (gameState === 'quiz' && !quizRevealed) {

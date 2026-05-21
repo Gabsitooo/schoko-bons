@@ -1,19 +1,23 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html, body {
+html {
+  height: 100%;
+  overflow: hidden;
+  background: #120800;
+}
+
+body {
   width: 100%;
   height: 100%;
-  /* iOS Safari: prevent elastic bounce & address-bar resize jumps */
-  position: fixed;
   overflow: hidden;
   background: #120800;
   font-family: Arial, sans-serif;
-  /* Prevent text selection / callout menus on long-press */
+  /* Prevent iOS elastic bounce WITHOUT position:fixed on html
+     (position:fixed on html collapses the root to 0px on iOS Safari) */
+  overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
-  /* Disable tap highlight flash on iOS */
   -webkit-tap-highlight-color: transparent;
-  /* Disable all default touch gestures at root level */
   touch-action: none;
 }
 
@@ -23,11 +27,10 @@ html, body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* CSS fallback sizing — JS resizeCanvas() overrides with exact px values */
+  /* CSS fallback — JS resizeCanvas() sets exact px values */
   width: min(100vw, calc(100vh * 960 / 540));
   height: min(100vh, calc(100vw * 540 / 960));
-  /* Crisp pixel rendering — webkit prefix needed for Safari < 15 */
-  -webkit-optimize-contrast: auto;
+  /* Crisp pixels — webkit prefix for Safari < 15 */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
