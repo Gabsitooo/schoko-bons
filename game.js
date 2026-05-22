@@ -51,7 +51,7 @@ let score          = 0;
 let lives          = 3;
 let highScore      = 0;
 let frameCount     = 0;
-let camera         = { x: 0, shake: 0 };
+let camera         = { x: 0, y: 0, shake: 0 };
 let particles      = [];
 let notifications  = [];
 
@@ -2573,7 +2573,7 @@ function loadLevel(idx) {
   flashTimer     = 0;
   levelTransition = 30;
   player         = new Player(levelData.spawn.x, levelData.spawn.y);
-  camera         = { x: 0 };
+  camera         = { x: 0, y: 0, shake: 0 };
   particles      = [];
   notifications  = [];
   gameState      = 'playing';
@@ -3397,7 +3397,7 @@ function loop() {
 
   if (gameState === 'quiz') {
     drawBg();
-    ctx.save(); ctx.translate(-camera.x, 0);
+    ctx.save(); ctx.translate(-camera.x, -camera.y);
     lPlatforms.forEach(p => p.draw());
     lCollectibles.forEach(c => c.draw());
     if (player) player.draw();
@@ -3444,10 +3444,13 @@ function loop() {
     }
   }
 
-  // Camera smooth follow
+  // Camera smooth follow (horizontal + vertical)
   if (player) {
     const tx = clamp(player.x - W/2 + player.w/2, 0, levelData.width - W);
-    camera.x  = lerp(camera.x, tx, 0.14);
+    camera.x  = lerp(camera.x, tx, 0.12);
+    const maxCamY = Math.max(0, levelData.height - H);
+    const ty = clamp(player.y - H * 0.55, 0, maxCamY);
+    camera.y  = lerp(camera.y, ty, 0.10);
   }
 
   // Level end trigger
@@ -3471,7 +3474,7 @@ function loop() {
     ctx.translate((Math.random()-0.5)*camera.shake, (Math.random()-0.5)*camera.shake*0.6);
     camera.shake *= 0.72;
   } else { camera.shake = 0; }
-  ctx.translate(-camera.x, 0);
+  ctx.translate(-camera.x, -camera.y);
   lPlatforms.forEach(p => p.draw());
   lMoving.forEach(m => m.draw());
   lCheckpoints.forEach(c => c.draw());
