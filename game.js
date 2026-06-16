@@ -2891,6 +2891,27 @@ function drawHUD() {
   ctx.fillStyle='#FFE0E0'; ctx.font='bold 17px Arial';
   ctx.fillText(`×${lives}`, lvX+26, lvY+24);
 
+  // ── Nom du perso "Schoko" — badge fun à droite des vies ──
+  const nkX = lvX + 68, nkY = lvY;
+  ctx.save();
+  // Fond badge
+  const nkg = ctx.createLinearGradient(nkX, nkY, nkX, nkY+36);
+  nkg.addColorStop(0,'rgba(255,200,40,0.92)'); nkg.addColorStop(1,'rgba(200,100,0,0.88)');
+  _clipRR(nkX, nkY, 74, 36, 10); ctx.fillStyle = nkg; ctx.fill();
+  ctx.strokeStyle='rgba(255,240,100,0.8)'; ctx.lineWidth=1.5;
+  _clipRR(nkX, nkY, 74, 36, 10); ctx.stroke();
+  // Brillance
+  ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fillRect(nkX, nkY, 74, 14);
+  // Texte "Schoko" — italique fun
+  ctx.shadowColor='rgba(120,40,0,0.7)'; ctx.shadowBlur=4; ctx.shadowOffsetY=1;
+  const ng = ctx.createLinearGradient(nkX, nkY+8, nkX, nkY+30);
+  ng.addColorStop(0,'#FFFFFF'); ng.addColorStop(1,'#FFF0C0');
+  ctx.fillStyle = ng; ctx.font = 'bold italic 18px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Schoko', nkX+37, nkY+25);
+  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+  ctx.restore();
+
   // ── Power-up bars (right) ──
   let px = W - 12;
   const drawPBar = (type) => {
@@ -3366,6 +3387,24 @@ function drawEndScreen() {
   ctx.fillText('Score final : ' + score, W/2, scoreY + 6);
   ctx.fillStyle = 'rgba(255,220,150,0.8)'; ctx.font = '15px Arial';
   ctx.fillText('Record : ' + highScore, W/2, scoreY + 28);
+
+  // ── Message partage ──
+  const shareY = 272;
+  const pulse = 0.88 + 0.12 * Math.sin(frameCount * 0.09);
+  ctx.save();
+  ctx.translate(W/2, shareY); ctx.scale(pulse, pulse);
+  // Fond pastille
+  ctx.save();
+  _clipRR(-188, -18, 376, 32, 16); ctx.clip();
+  const shg = ctx.createLinearGradient(-188, -18, 188, 14);
+  shg.addColorStop(0,'rgba(255,255,255,0.72)'); shg.addColorStop(1,'rgba(200,230,255,0.72)');
+  ctx.fillStyle = shg; ctx.fillRect(-188,-18,376,32);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(135,206,235,0.8)'; ctx.lineWidth = 1.5;
+  _clipRR(-188, -18, 376, 32, 16); ctx.stroke();
+  ctx.fillStyle = '#1A4A7A'; ctx.font = 'bold 14px Arial';
+  ctx.fillText('📲  Partage ton score avec tes amis !', 0, 4);
+  ctx.restore();
 
   // ── Bouton CTA principal (utilise END_CTA défini globalement) ──
   const ctaHover = _endMouseX >= END_CTA.x && _endMouseX < END_CTA.x+END_CTA.w &&
