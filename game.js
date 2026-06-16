@@ -105,6 +105,7 @@ function _endScreenAction(cx, cy) {
     window.open('https://www.kinder.com/fr/fr/kinder-schoko-bons', '_blank', 'noopener,noreferrer');
   } else if (cx >= END_RPL.x && cx < END_RPL.x+END_RPL.w &&
              cy >= END_RPL.y && cy < END_RPL.y+END_RPL.h) {
+    canvas.style.cursor = 'none';
     sfx.menuClick(); score = 0; lives = 3; loadLevel(0);
   }
 }
@@ -719,7 +720,7 @@ class Player {
     burst(this.x + this.w/2, this.y + this.h/2, '#E8001C', 20, 6);
     lives--;
     setTimeout(() => {
-      if (lives <= 0) { sfx.gameOver(); endType = 'gameover'; gameState = 'endscreen'; }
+      if (lives <= 0) { sfx.gameOver(); endType = 'gameover'; gameState = 'endscreen'; canvas.style.cursor = 'default'; }
       else {
         loadLevel(currentLevel);
         // Respawn at checkpoint if one was activated
@@ -2963,7 +2964,7 @@ function handleQuiz() {
       quizTimer    = 0;
       const next = currentLevel + 1;
       if (next < LEVELS.length) loadLevel(next);
-      else { sfx.levelWin(); endType = 'win'; gameState = 'endscreen'; }
+      else { sfx.levelWin(); endType = 'win'; gameState = 'endscreen'; canvas.style.cursor = 'default'; }
     }
   }
 }
@@ -3452,6 +3453,8 @@ function drawEndScreen() {
   ctx.restore();
 
   ctx.textAlign = 'left';
+  // Curseur pointer sur les boutons, default ailleurs
+  canvas.style.cursor = (ctaHover || rpHover) ? 'pointer' : 'default';
   // (actions gérées dans _endScreenAction, appelé depuis les event handlers)
 }
 
