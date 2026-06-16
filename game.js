@@ -76,6 +76,9 @@ let checkpointY    = 0;   // respawn Y after checkpoint
 let checkpointHit  = false;
 let flashTimer     = 0;   // damage screen flash frames
 let levelTransition= 0;   // fade-in frames when level loads (30 frames)
+let endType        = 'win'; // 'win' | 'gameover' — set before entering endscreen state
+let _endClickX     = -1;  // last canvas-coord click X on endscreen
+let _endClickY     = -1;  // last canvas-coord click Y on endscreen
 
 // ============================================================
 // INPUT
@@ -89,6 +92,14 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => { keys[e.code] = { held: false, just: false }; });
 // Block iOS elastic scroll — touchmove only (no conflicting touchstart listener here)
 document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+// Click handler for endscreen buttons (desktop mouse)
+canvas.addEventListener('click', e => {
+  if (gameState !== 'endscreen') return;
+  const r = canvas.getBoundingClientRect();
+  _endClickX = (e.clientX - r.left) * VW / r.width;
+  _endClickY = (e.clientY - r.top)  * VH / r.height;
+});
 
 // ============================================================
 // SOUND ENGINE — Web Audio API (synthesised, no files)
@@ -218,6 +229,7 @@ const touch = (() => {
         }
         continue;
       }
+      if (gameState === 'endscreen') { _endClickX=cx; _endClickY=cy; continue; }
       if (gameState !== 'playing') { keys['Enter']={ held:false, just:true }; continue; }
       const n = _btnAt(cx,cy);
       if (n) { _held[t.identifier]=n; _press(n); }
@@ -682,7 +694,7 @@ class Player {
     burst(this.x + this.w/2, this.y + this.h/2, '#E8001C', 20, 6);
     lives--;
     setTimeout(() => {
-      if (lives <= 0) { sfx.gameOver(); gameState = 'gameover'; }
+      if (lives <= 0) { sfx.gameOver(); endType = 'gameover'; gameState = 'endscreen'; }
       else {
         loadLevel(currentLevel);
         // Respawn at checkpoint if one was activated
@@ -2905,7 +2917,7 @@ function handleQuiz() {
       quizTimer    = 0;
       const next = currentLevel + 1;
       if (next < LEVELS.length) loadLevel(next);
-      else { sfx.levelWin(); gameState = 'win'; }
+      else { sfx.levelWin(); endType = 'win'; gameState = 'endscreen'; }
     }
   }
 }
@@ -3252,6 +3264,155 @@ function drawMenu() {
 }
 
 // ============================================================
+// END SCREEN (victoire ou défaite)
+// ============================================================
+function drawEndScreen() {
+  const isWin = (endType === 'win');
+
+  // ── Fond dégradé Schoko-Bons (bleu ciel → blanc) ──
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#87CEEB');
+  bg.addColorStop(0.55, '#C9E8F8');
+  bg.addColorStop(1, '#FFFFFF');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // ── Confettis / pétales animés ──
+  for (let i = 0; i < 28; i++) {
+    const px = ((i * 113 + frameCount * (1.2 + i * 0.05)) % (W + 40)) - 20;
+    const py = ((i * 79  + frameCount * (0.7 + i * 0.04)) % (H + 60)) - 30;
+    const rot = (frameCount * 0.03 + i) * 1.4;
+    const col = ['#E2001A','#FFD700','#FFFFFF','#87CEEB','#5C3317','#FF8844'][i % 6];
+    ctx.save(); ctx.translate(px, py); ctx.rotate(rot);
+    ctx.globalAlpha = 0.55 + 0.3 * Math.sin(frameCount * 0.04 + i);
+    ctx.fillStyle = col; ctx.fillRect(-7, -4, 14, 8);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Logo Schoko-Bons (haut de page) ──
+  const logoY = 48;
+  // Pastille rouge Kinder
+  const logoGrad = ctx.createRadialGradient(W/2, logoY, 0, W/2, logoY, 52);
+  logoGrad.addColorStop(0, '#FF3333'); logoGrad.addColorStop(1, '#AA0010');
+  ctx.fillStyle = logoGrad;
+  ctx.beginPath(); ctx.ellipse(W/2, logoY, 120, 34, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(W/2, logoY, 120, 34, 0, 0, Math.PI * 2); ctx.stroke();
+  // Bande blanche centrale
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.ellipse(W/2, logoY, 120, 12, 0, 0, Math.PI * 2); ctx.fill();
+  // Texte logo
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#E2001A'; ctx.font = 'bold 15px Arial';
+  ctx.fillText('kinder', W/2, logoY + 4);
+  ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 11px Arial';
+  ctx.fillText('Schoko-Bons', W/2, logoY + 20);
+
+  // ── Titre principal ──
+  const titleY = 130;
+  ctx.shadowColor = isWin ? '#FFD700' : '#AA0010';
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = isWin ? '#5C3317' : '#AA0010';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText(isWin ? '🎉 Félicitations !' : '😢 Game Over...', W/2, titleY);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#333333'; ctx.font = '20px Arial';
+  ctx.fillText(
+    isWin
+      ? 'Tu es un vrai champion Schoko-Bons !'
+      : 'Mais les vrais champions ne s\'arrêtent pas !',
+    W/2, titleY + 36
+  );
+
+  // ── Score final ──
+  const scoreY = 210;
+  // Fond score
+  ctx.save();
+  _clipRR(W/2 - 180, scoreY - 28, 360, 62, 14); ctx.clip();
+  const sg = ctx.createLinearGradient(W/2 - 180, scoreY - 28, W/2 + 180, scoreY + 34);
+  sg.addColorStop(0, 'rgba(92,51,23,0.92)'); sg.addColorStop(1, 'rgba(40,18,5,0.92)');
+  ctx.fillStyle = sg; ctx.fillRect(W/2 - 180, scoreY - 28, 360, 62);
+  ctx.restore();
+  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+  _clipRR(W/2 - 180, scoreY - 28, 360, 62, 14); ctx.stroke();
+  if (score > highScore) { highScore = score; }
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 22px Arial';
+  ctx.fillText('Score final : ' + score, W/2, scoreY + 6);
+  ctx.fillStyle = 'rgba(255,220,150,0.8)'; ctx.font = '15px Arial';
+  ctx.fillText('Record : ' + highScore, W/2, scoreY + 28);
+
+  // ── Bouton CTA principal ──
+  const ctaX = W/2 - 220, ctaY = 295, ctaW = 440, ctaH = 62, ctaR = 14;
+  const ctaHover = _endClickX >= ctaX && _endClickX < ctaX+ctaW &&
+                   _endClickY >= ctaY && _endClickY < ctaY+ctaH;
+  const ctaScale = 1 + 0.018 * Math.sin(frameCount * 0.07); // pulse doux
+  ctx.save();
+  ctx.translate(W/2, ctaY + ctaH/2);
+  if (ctaHover) ctx.scale(1.04, 1.04); else ctx.scale(ctaScale, ctaScale);
+  ctx.translate(-W/2, -(ctaY + ctaH/2));
+  // Glow
+  ctx.shadowColor = '#E2001A'; ctx.shadowBlur = ctaHover ? 28 : 12;
+  // Fond bouton
+  ctx.save();
+  _clipRR(ctaX, ctaY, ctaW, ctaH, ctaR); ctx.clip();
+  const ctaG = ctx.createLinearGradient(ctaX, ctaY, ctaX, ctaY + ctaH);
+  ctaG.addColorStop(0, ctaHover ? '#FF2233' : '#E2001A');
+  ctaG.addColorStop(1, ctaHover ? '#AA0010' : '#8B0010');
+  ctx.fillStyle = ctaG; ctx.fillRect(ctaX, ctaY, ctaW, ctaH);
+  // Brillance haute
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(ctaX, ctaY, ctaW, ctaH * 0.42);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,180,180,0.7)'; ctx.lineWidth = 2;
+  _clipRR(ctaX, ctaY, ctaW, ctaH, ctaR); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // Texte CTA
+  ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px Arial';
+  ctx.fillText('🍫  Découvrir les vrais Schoko-Bons  →', W/2, ctaY + ctaH/2 + 7);
+  ctx.restore();
+
+  // ── Bouton secondaire Rejouer ──
+  const rpX = W/2 - 110, rpY = 374, rpW = 220, rpH = 50, rpR = 12;
+  const rpHover = _endClickX >= rpX && _endClickX < rpX+rpW &&
+                  _endClickY >= rpY && _endClickY < rpY+rpH;
+  ctx.save();
+  ctx.shadowColor = 'rgba(92,51,23,0.5)'; ctx.shadowBlur = rpHover ? 18 : 6;
+  ctx.save();
+  _clipRR(rpX, rpY, rpW, rpH, rpR); ctx.clip();
+  const rpG = ctx.createLinearGradient(rpX, rpY, rpX, rpY + rpH);
+  rpG.addColorStop(0, rpHover ? '#7A4520' : '#5C3317');
+  rpG.addColorStop(1, rpHover ? '#3E1A08' : '#2A1005');
+  ctx.fillStyle = rpG; ctx.fillRect(rpX, rpY, rpW, rpH);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(rpX, rpY, rpW, rpH * 0.4);
+  ctx.restore();
+  ctx.strokeStyle = rpHover ? 'rgba(255,180,100,0.9)' : 'rgba(200,140,60,0.5)';
+  ctx.lineWidth = 1.5;
+  _clipRR(rpX, rpY, rpW, rpH, rpR); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 18px Arial';
+  ctx.fillText('🔄  Rejouer', W/2, rpY + rpH/2 + 6);
+  ctx.restore();
+
+  ctx.textAlign = 'left';
+
+  // ── Gestion clics ──
+  if (_endClickX >= 0) {
+    if (_endClickX >= ctaX && _endClickX < ctaX+ctaW &&
+        _endClickY >= ctaY && _endClickY < ctaY+ctaH) {
+      // Ouvre le site Kinder
+      window.open('https://www.kinder.com/fr/fr/kinder-schoko-bons', '_blank', 'noopener,noreferrer');
+      _endClickX = -1; _endClickY = -1;
+    } else if (_endClickX >= rpX && _endClickX < rpX+rpW &&
+               _endClickY >= rpY && _endClickY < rpY+rpH) {
+      sfx.menuClick(); score = 0; lives = 3; _endClickX = -1; _endClickY = -1;
+      loadLevel(0);
+    } else {
+      _endClickX = -1; _endClickY = -1;
+    }
+  }
+}
+
+// ============================================================
 // GAME OVER
 // ============================================================
 function drawGameOver() {
@@ -3391,9 +3552,10 @@ function loop() {
   frameCount++;
   ctx.clearRect(0,0,W,H);
 
-  if (gameState === 'menu')     { drawMenu();     requestAnimationFrame(loop); return; }
-  if (gameState === 'gameover') { drawGameOver(); requestAnimationFrame(loop); return; }
-  if (gameState === 'win')      { drawWin();      requestAnimationFrame(loop); return; }
+  if (gameState === 'menu')       { drawMenu();       requestAnimationFrame(loop); return; }
+  if (gameState === 'endscreen')  { drawEndScreen();  requestAnimationFrame(loop); return; }
+  if (gameState === 'gameover')   { drawGameOver();   requestAnimationFrame(loop); return; }
+  if (gameState === 'win')        { drawWin();        requestAnimationFrame(loop); return; }
 
   if (gameState === 'quiz') {
     drawBg();
