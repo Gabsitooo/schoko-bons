@@ -3372,22 +3372,39 @@ function drawEndScreen() {
     W/2, titleY + 36
   );
 
-  // ── Score final ──
-  const scoreY = 210;
-  // Fond score
-  ctx.save();
-  _clipRR(W/2 - 180, scoreY - 28, 360, 62, 14); ctx.clip();
-  const sg = ctx.createLinearGradient(W/2 - 180, scoreY - 28, W/2 + 180, scoreY + 34);
-  sg.addColorStop(0, 'rgba(92,51,23,0.92)'); sg.addColorStop(1, 'rgba(40,18,5,0.92)');
-  ctx.fillStyle = sg; ctx.fillRect(W/2 - 180, scoreY - 28, 360, 62);
-  ctx.restore();
-  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
-  _clipRR(W/2 - 180, scoreY - 28, 360, 62, 14); ctx.stroke();
+  // ── Score final — grand et mis en valeur ──
   if (score > highScore) { highScore = score; }
-  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 22px Arial';
-  ctx.fillText('Score final : ' + score, W/2, scoreY + 6);
-  ctx.fillStyle = 'rgba(255,220,150,0.8)'; ctx.font = '15px Arial';
-  ctx.fillText('Record : ' + highScore, W/2, scoreY + 28);
+  const scoreY = 195;
+  // Fond élargi avec bordure dorée brillante
+  ctx.save();
+  _clipRR(W/2 - 210, scoreY - 36, 420, 88, 18); ctx.clip();
+  const sg = ctx.createLinearGradient(W/2 - 210, scoreY - 36, W/2 + 210, scoreY + 52);
+  sg.addColorStop(0, 'rgba(80,35,0,0.96)'); sg.addColorStop(1, 'rgba(30,10,0,0.96)');
+  ctx.fillStyle = sg; ctx.fillRect(W/2 - 210, scoreY - 36, 420, 88);
+  // Reflet doré en haut
+  ctx.fillStyle = 'rgba(255,220,60,0.10)'; ctx.fillRect(W/2 - 210, scoreY - 36, 420, 22);
+  ctx.restore();
+  // Bordure dorée animée
+  const borderAlpha = 0.6 + 0.4 * Math.sin(frameCount * 0.08);
+  ctx.strokeStyle = `rgba(255,215,0,${borderAlpha})`; ctx.lineWidth = 2.5;
+  _clipRR(W/2 - 210, scoreY - 36, 420, 88, 18); ctx.stroke();
+  // Libellé "SCORE FINAL"
+  ctx.fillStyle = 'rgba(255,200,80,0.65)'; ctx.font = 'bold 11px Arial';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('SCORE FINAL', W/2, scoreY - 16);
+  ctx.letterSpacing = '0px';
+  // Chiffre du score — très grand
+  ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 18;
+  const scoreGrad = ctx.createLinearGradient(W/2 - 60, scoreY, W/2 + 60, scoreY + 34);
+  scoreGrad.addColorStop(0, '#FFFFFF'); scoreGrad.addColorStop(0.4, '#FFE566'); scoreGrad.addColorStop(1, '#FFB800');
+  ctx.fillStyle = scoreGrad; ctx.font = 'bold 46px Arial';
+  ctx.fillText(score, W/2, scoreY + 24);
+  ctx.shadowBlur = 0;
+  // Record
+  const isRecord = score >= highScore && score > 0;
+  ctx.fillStyle = isRecord ? '#FF6' : 'rgba(255,220,150,0.7)';
+  ctx.font = isRecord ? 'bold 14px Arial' : '13px Arial';
+  ctx.fillText(isRecord ? '🏆 Nouveau record !' : 'Record : ' + highScore, W/2, scoreY + 46);
 
   // ── Message partage ──
   const shareY = 272;
@@ -3451,6 +3468,16 @@ function drawEndScreen() {
   ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 18px Arial';
   ctx.fillText('🔄  Rejouer', W/2, END_RPL.y + END_RPL.h/2 + 6);
   ctx.restore();
+  // Hint barre espace
+  if (Math.floor(frameCount/32)%2===0) {
+    ctx.fillStyle = 'rgba(60,60,80,0.62)'; ctx.font = '12px Arial';
+    ctx.fillText('ou appuie sur  ESPACE', W/2, END_RPL.y + END_RPL.h + 18);
+  }
+  // Barre espace → rejouer
+  if (just('Space') || just('Enter')) {
+    canvas.style.cursor = 'none';
+    sfx.menuClick(); score = 0; lives = 3; loadLevel(0);
+  }
 
   ctx.textAlign = 'left';
   // Curseur pointer sur les boutons, default ailleurs
